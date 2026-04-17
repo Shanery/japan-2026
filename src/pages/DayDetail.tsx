@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 import { format } from 'date-fns'
-import { ArrowLeft, Clock, MapPin, ExternalLink, Trash2, Edit2, Plus, Utensils, Navigation, Ticket, MapIcon, Camera } from 'lucide-react'
+import { ArrowLeft, MapPin, Plus, Utensils, Navigation, Ticket, Camera, Calendar } from 'lucide-react'
 import AddActivityModal from '../components/AddActivityModal'
 import ActivityCard from '../components/ActivityCard'
 
@@ -16,8 +17,8 @@ function getDayDate(dayNumber: number): Date {
 }
 
 interface Activity {
-  _id: string
-  dayId: string
+  _id: Id<'activities'>
+  dayId: Id<'days'>
   name: string
   type: 'activity' | 'food' | 'logistics' | 'ticket'
   time?: string
@@ -34,6 +35,13 @@ interface Activity {
 
 type TabType = 'itinerary' | 'food' | 'logistics' | 'files'
 
+const TABS: { id: TabType; label: string; jp: string; icon: typeof Utensils | null }[] = [
+  { id: 'itinerary', label: 'Itinerary', jp: '旅程', icon: null },
+  { id: 'food', label: 'Food', jp: '食', icon: Utensils },
+  { id: 'logistics', label: 'Logistics', jp: '移動', icon: Navigation },
+  { id: 'files', label: 'Tickets', jp: '切符', icon: Ticket },
+]
+
 export default function DayDetail() {
   const { dayNumber } = useParams<{ dayNumber: string }>()
   const [activeTab, setActiveTab] = useState<TabType>('itinerary')
@@ -44,7 +52,7 @@ export default function DayDetail() {
   const dayData = useQuery(api.days.getByNumber, { dayNumber: dayNum })
   const activities = useQuery(
     api.activities.listByDayWithTotals,
-    dayData ? { dayId: dayData._id } : "skip"
+    dayData ? { dayId: dayData._id } : 'skip',
   )
 
   const dayDate = getDayDate(dayNum)
@@ -64,213 +72,124 @@ export default function DayDetail() {
     setEditingActivity(null)
   }
 
-  return (
-    <div className="animate-fade-in pb-8">
-      {/* Header */}
-      <div className="mb-8">
-        <Link to="/" className="flex items-center gap-2 text-japan-red hover:text-japan-slate transition-colors mb-4">
-          <ArrowLeft size={20} />
-          <span>Back to Trip</span>
-        </Link>
+  const tabData = {
+    itinerary: { list: sortedActivities, empty: 'No activities planned for this day yet.', addLabel: 'Add activity' },
+    food: { list: foodActivities, empty: 'No food plans yet.', addLabel: 'Add food' },
+    logistics: { list: logisticsActivities, empty: 'No logistics yet.', addLabel: 'Add logistics' },
+    files: { list: ticketActivities, empty: 'No tickets yet.', addLabel: 'Add ticket' },
+  }
 
-        <div className="bg-white rounded-lg p-8 shadow-md border border-gray-100 mb-6">
-          <div className="flex items-start justify-between gap-4 flex-col md:flex-row">
-            <div>
-              <h1 className="text-4xl font-bold text-japan-slate mb-2">Day {dayNum}</h1>
-              <p className="text-gray-600 flex items-center gap-2 text-lg mb-4">
-                <Calendar size={20} className="text-japan-red" />
+  const current = tabData[activeTab]
+
+  return (
+    <div className="pb-8">
+      {/* Back link */}
+      <Link
+        to="/"
+        className="inline-flex items-center gap-2 text-sm text-sumi-500 hover:text-ai-500 tracking-wide mb-10 transition-colors"
+      >
+        <ArrowLeft size={14} strokeWidth={1.5} />
+        <span>Back to itinerary</span>
+      </Link>
+
+      {/* Day header */}
+      <section className="relative overflow-hidden mb-16">
+        <div className="kanji-watermark text-[16rem] md:text-[22rem] leading-none -top-16 -right-4">
+          日
+        </div>
+        <div className="relative flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+          <div>
+            <p className="mincho-label mb-4">Day {dayNum.toString().padStart(2, '0')}</p>
+            <h1 className="font-serif text-5xl md:text-6xl text-sumi-900 leading-none tracking-mincho mb-5">
+              {dayData?.city || '—'}
+            </h1>
+            <div className="flex flex-wrap gap-6 text-sm text-sumi-600">
+              <span className="inline-flex items-center gap-2 tracking-wide">
+                <Calendar size={14} strokeWidth={1.5} className="text-ai-500" />
                 {format(dayDate, 'EEEE, MMMM d, yyyy')}
-              </p>
+              </span>
               {dayData && (
-                <>
-                  <p className="text-lg flex items-center gap-2 text-japan-slate font-medium">
-                    <MapPin size={20} className="text-japan-red" />
-                    {dayData.city}
-                  </p>
-                  <p className="text-gray-600 mt-3 max-w-2xl">{dayData.summary}</p>
-                </>
+                <span className="inline-flex items-center gap-2 tracking-wide">
+                  <MapPin size={14} strokeWidth={1.5} className="text-ai-500" />
+                  {dayData.city}
+                </span>
               )}
             </div>
-            <Link
-              to={`/memories/${dayNum}`}
-              className="bg-japan-red text-white px-6 py-2 rounded-lg hover:bg-japan-slate transition-colors flex items-center gap-2 font-medium"
-            >
-              <Camera size={20} />
-              <span>Day Memories</span>
-            </Link>
+            {dayData?.summary && (
+              <p className="mt-6 max-w-2xl text-sumi-600 leading-relaxed accent-rule">
+                {dayData.summary}
+              </p>
+            )}
           </div>
+          <Link to={`/memories/${dayNum}`} className="btn-ghost self-start md:self-auto">
+            <Camera size={16} strokeWidth={1.5} />
+            Day memories
+          </Link>
         </div>
-      </div>
+      </section>
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 mb-6">
-        <div className="flex border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('itinerary')}
-            className={`flex-1 py-4 px-6 font-medium border-b-2 transition-colors ${
-              activeTab === 'itinerary'
-                ? 'text-japan-red border-japan-red'
-                : 'text-gray-600 border-transparent hover:border-gray-300'
-            }`}
-          >
-            Itinerary
-          </button>
-          <button
-            onClick={() => setActiveTab('food')}
-            className={`flex-1 py-4 px-6 font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${
-              activeTab === 'food'
-                ? 'text-japan-red border-japan-red'
-                : 'text-gray-600 border-transparent hover:border-gray-300'
-            }`}
-          >
-            <Utensils size={18} />
-            Food
-          </button>
-          <button
-            onClick={() => setActiveTab('logistics')}
-            className={`flex-1 py-4 px-6 font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${
-              activeTab === 'logistics'
-                ? 'text-japan-red border-japan-red'
-                : 'text-gray-600 border-transparent hover:border-gray-300'
-            }`}
-          >
-            <Navigation size={18} />
-            Logistics
-          </button>
-          <button
-            onClick={() => setActiveTab('files')}
-            className={`flex-1 py-4 px-6 font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${
-              activeTab === 'files'
-                ? 'text-japan-red border-japan-red'
-                : 'text-gray-600 border-transparent hover:border-gray-300'
-            }`}
-          >
-            <Ticket size={18} />
-            Files
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        <div className="p-6">
-          {activeTab === 'itinerary' && (
-            <div className="space-y-4">
+      <div className="border-b border-washi-200 mb-10">
+        <div className="flex gap-8 overflow-x-auto">
+          {TABS.map((tab) => {
+            const Icon = tab.icon
+            const active = activeTab === tab.id
+            return (
               <button
-                onClick={() => {
-                  setEditingActivity(null)
-                  setShowAddModal(true)
-                }}
-                className="bg-japan-red text-white px-4 py-2 rounded-lg hover:bg-japan-slate transition-colors flex items-center gap-2 font-medium mb-6"
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative pb-4 flex items-center gap-2 text-sm tracking-wide transition-colors whitespace-nowrap ${
+                  active ? 'text-ai-500' : 'text-sumi-500 hover:text-sumi-900'
+                }`}
               >
-                <Plus size={18} />
-                Add Activity
+                <span className={`font-serif text-[11px] tracking-mincho-wide ${active ? 'text-ai-400' : 'text-sumi-400'}`}>
+                  {tab.jp}
+                </span>
+                {Icon && <Icon size={14} strokeWidth={1.5} />}
+                <span>{tab.label}</span>
+                {active && <span className="absolute bottom-0 left-0 right-0 h-px bg-ai-500" aria-hidden />}
               </button>
-              {sortedActivities.length === 0 ? (
-                <p className="text-gray-500 py-8 text-center">No activities planned for this day yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {sortedActivities.map((activity) => (
-                    <ActivityCard
-                      key={activity._id}
-                      activity={activity}
-                      dayNumber={dayNum}
-                      onEdit={() => handleEditActivity(activity)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'food' && (
-            <div className="space-y-4">
-              <button
-                onClick={() => {
-                  setEditingActivity(null)
-                  setShowAddModal(true)
-                }}
-                className="bg-japan-red text-white px-4 py-2 rounded-lg hover:bg-japan-slate transition-colors flex items-center gap-2 font-medium mb-6"
-              >
-                <Plus size={18} />
-                Add Food
-              </button>
-              {foodActivities.length === 0 ? (
-                <p className="text-gray-500 py-8 text-center">No food items planned for this day yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {foodActivities.map((activity) => (
-                    <ActivityCard
-                      key={activity._id}
-                      activity={activity}
-                      dayNumber={dayNum}
-                      onEdit={() => handleEditActivity(activity)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'logistics' && (
-            <div className="space-y-4">
-              <button
-                onClick={() => {
-                  setEditingActivity(null)
-                  setShowAddModal(true)
-                }}
-                className="bg-japan-red text-white px-4 py-2 rounded-lg hover:bg-japan-slate transition-colors flex items-center gap-2 font-medium mb-6"
-              >
-                <Plus size={18} />
-                Add Logistics
-              </button>
-              {logisticsActivities.length === 0 ? (
-                <p className="text-gray-500 py-8 text-center">No logistics items planned for this day yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {logisticsActivities.map((activity) => (
-                    <ActivityCard
-                      key={activity._id}
-                      activity={activity}
-                      dayNumber={dayNum}
-                      onEdit={() => handleEditActivity(activity)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'files' && (
-            <div className="space-y-4">
-              <button
-                onClick={() => {
-                  setEditingActivity(null)
-                  setShowAddModal(true)
-                }}
-                className="bg-japan-red text-white px-4 py-2 rounded-lg hover:bg-japan-slate transition-colors flex items-center gap-2 font-medium mb-6"
-              >
-                <Plus size={18} />
-                Add Ticket
-              </button>
-              {ticketActivities.length === 0 ? (
-                <p className="text-gray-500 py-8 text-center">No tickets or files uploaded for this day yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {ticketActivities.map((activity) => (
-                    <ActivityCard
-                      key={activity._id}
-                      activity={activity}
-                      dayNumber={dayNum}
-                      onEdit={() => handleEditActivity(activity)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            )
+          })}
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* Tab content */}
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-xs text-sumi-500 tracking-wide">
+            {current.list.length} {current.list.length === 1 ? 'item' : 'items'}
+          </p>
+          <button
+            onClick={() => {
+              setEditingActivity(null)
+              setShowAddModal(true)
+            }}
+            className="btn-primary"
+          >
+            <Plus size={14} strokeWidth={1.5} />
+            {current.addLabel}
+          </button>
+        </div>
+
+        {current.list.length === 0 ? (
+          <div className="py-20 text-center border border-dashed border-washi-200 rounded-sm">
+            <p className="text-sumi-400 text-sm tracking-wide">{current.empty}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {current.list.map((activity) => (
+              <ActivityCard
+                key={activity._id}
+                activity={activity}
+                dayNumber={dayNum}
+                onEdit={() => handleEditActivity(activity)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
       {showAddModal && dayData && (
         <AddActivityModal
           dayNumber={dayNum}
@@ -281,8 +200,4 @@ export default function DayDetail() {
       )}
     </div>
   )
-}
-
-function Calendar({ size, className }: { size: number; className: string }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className={className}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><path d="M16 2v4"></path><path d="M8 2v4"></path><path d="M3 10h18"></path></svg>
 }

@@ -1,13 +1,14 @@
 import { useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import { Utensils, MapPin, Navigation, Ticket, ExternalLink, Trash2, Edit2, MapIcon, Clock, DollarSign, Plus } from 'lucide-react'
+import type { Id } from '../../convex/_generated/dataModel'
+import { Utensils, MapPin, Navigation, Ticket, ExternalLink, Trash2, Edit2, MapIcon, Clock, Plus } from 'lucide-react'
 import { useState } from 'react'
 import AddLinkedBudgetItemModal from './AddLinkedBudgetItemModal'
 
 interface ActivityCardProps {
   activity: {
-    _id: string
-    dayId: string
+    _id: Id<'activities'>
+    dayId: Id<'days'>
     name: string
     type: 'activity' | 'food' | 'logistics' | 'ticket'
     time?: string
@@ -30,52 +31,26 @@ const DEFAULT_CATEGORY_BY_TYPE: Record<ActivityCardProps['activity']['type'], st
   activity: 'Activities',
 }
 
+const TYPE_META: Record<
+  ActivityCardProps['activity']['type'],
+  { icon: typeof MapPin; label: string; jp: string }
+> = {
+  activity: { icon: MapPin, label: 'Activity', jp: '体験' },
+  food: { icon: Utensils, label: 'Food', jp: '食' },
+  logistics: { icon: Navigation, label: 'Logistics', jp: '移動' },
+  ticket: { icon: Ticket, label: 'Ticket', jp: '切符' },
+}
+
 export default function ActivityCard({ activity, dayNumber, onEdit }: ActivityCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showCostModal, setShowCostModal] = useState(false)
   const deleteActivity = useMutation(api.activities.remove)
 
-  const getTypeIcon = () => {
-    switch (activity.type) {
-      case 'food':
-        return <Utensils size={20} className="text-orange-600" />
-      case 'logistics':
-        return <Navigation size={20} className="text-blue-600" />
-      case 'ticket':
-        return <Ticket size={20} className="text-purple-600" />
-      default:
-        return <MapPin size={20} className="text-green-600" />
-    }
-  }
-
-  const getTypeBadgeColor = () => {
-    switch (activity.type) {
-      case 'food':
-        return 'bg-orange-100 text-orange-700'
-      case 'logistics':
-        return 'bg-blue-100 text-blue-700'
-      case 'ticket':
-        return 'bg-purple-100 text-purple-700'
-      default:
-        return 'bg-green-100 text-green-700'
-    }
-  }
-
-  const getTypeLabel = () => {
-    switch (activity.type) {
-      case 'food':
-        return 'Food'
-      case 'logistics':
-        return 'Logistics'
-      case 'ticket':
-        return 'Ticket'
-      default:
-        return 'Activity'
-    }
-  }
+  const meta = TYPE_META[activity.type]
+  const Icon = meta.icon
 
   const handleDelete = async () => {
-    if (confirm('Are you sure you want to delete this activity?')) {
+    if (confirm('Delete this activity?')) {
       setIsDeleting(true)
       try {
         await deleteActivity({ id: activity._id })
@@ -85,100 +60,112 @@ export default function ActivityCard({ activity, dayNumber, onEdit }: ActivityCa
     }
   }
 
-  return (
-    <div className="bg-white rounded-lg p-6 card-shadow border border-gray-100 hover:shadow-lg transition-smooth">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex gap-4 flex-1">
-          <div className="flex-shrink-0 mt-1">{getTypeIcon()}</div>
+  const hasCost = !!(activity.totalAUD || activity.totalJPY)
 
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <h4 className="text-lg font-bold text-japan-slate">{activity.name}</h4>
-              <span className={`${getTypeBadgeColor()} text-xs font-medium px-2 py-1 rounded`}>{getTypeLabel()}</span>
-              {activity.isBooked && <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-1 rounded">Booked</span>}
+  return (
+    <div className="group border border-washi-200 bg-white/60 hover:bg-white transition-smooth">
+      <div className="flex gap-5 p-6">
+        {/* Type gutter */}
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <span className="font-serif text-xs text-ai-500 tracking-mincho-wide">{meta.jp}</span>
+          <Icon size={16} strokeWidth={1.5} className="text-sumi-500" />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3 flex-wrap mb-1">
+                <h4 className="font-serif text-lg text-sumi-900 leading-snug">{activity.name}</h4>
+                {activity.isBooked && (
+                  <span className="inline-flex items-center text-[10px] tracking-mincho-wide uppercase text-matcha-600 border border-matcha-400/50 px-2 py-0.5 rounded-sm">
+                    Booked
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-sumi-500 tracking-wide uppercase">{meta.label}</p>
             </div>
 
-            {activity.time && (
-              <p className="text-sm text-gray-600 flex items-center gap-2 mb-2">
-                <Clock size={16} className="text-japan-red" />
-                {activity.time}
-              </p>
-            )}
-
-            {activity.location && (
-              <p className="text-sm text-gray-600 flex items-center gap-2 mb-2">
-                <MapPin size={16} className="text-japan-red" />
-                {activity.location}
-              </p>
-            )}
-
-            {activity.notes && <p className="text-sm text-gray-700 mb-3">{activity.notes}</p>}
-
-            <div className="text-sm text-gray-600 flex items-center gap-2 mb-3 flex-wrap">
-              {(activity.totalAUD || activity.totalJPY) ? (
-                <>
-                  <DollarSign size={16} className="text-japan-red" />
-                  {activity.totalAUD ? <span>A${activity.totalAUD.toFixed(2)}</span> : null}
-                  {activity.totalAUD && activity.totalJPY ? <span>•</span> : null}
-                  {activity.totalJPY ? <span>¥{Math.round(activity.totalJPY)}</span> : null}
-                </>
-              ) : null}
+            <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
-                onClick={() => setShowCostModal(true)}
-                className="text-japan-red hover:text-japan-slate transition-colors font-medium flex items-center gap-1"
-                title="Add linked budget item"
+                onClick={onEdit}
+                className="p-1.5 text-sumi-500 hover:text-ai-500 transition-colors"
+                title="Edit"
               >
-                <Plus size={14} />
-                {(activity.totalAUD || activity.totalJPY) ? 'Add cost' : 'Add cost'}
+                <Edit2 size={14} strokeWidth={1.5} />
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="p-1.5 text-sumi-500 hover:text-shu transition-colors disabled:opacity-50"
+                title="Delete"
+              >
+                <Trash2 size={14} strokeWidth={1.5} />
               </button>
             </div>
+          </div>
 
-            <div className="flex gap-2 flex-wrap">
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-sm text-sumi-600 mb-3">
+            {activity.time && (
+              <span className="inline-flex items-center gap-1.5">
+                <Clock size={13} strokeWidth={1.5} className="text-ai-400" />
+                {activity.time}
+              </span>
+            )}
+            {activity.location && (
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin size={13} strokeWidth={1.5} className="text-ai-400" />
+                {activity.location}
+              </span>
+            )}
+          </div>
+
+          {activity.notes && (
+            <p className="text-sm text-sumi-700 mb-3 leading-relaxed accent-rule">{activity.notes}</p>
+          )}
+
+          <div className="flex items-center gap-4 flex-wrap mt-3 pt-3 border-t border-washi-200 text-xs tracking-wide">
+            {hasCost ? (
+              <span className="font-serif text-sm text-sumi-900">
+                {activity.totalAUD && <>A${activity.totalAUD.toFixed(2)}</>}
+                {activity.totalAUD && activity.totalJPY && <span className="text-sumi-400 mx-2">·</span>}
+                {activity.totalJPY && <>¥{Math.round(activity.totalJPY).toLocaleString()}</>}
+              </span>
+            ) : null}
+
+            <button
+              onClick={() => setShowCostModal(true)}
+              className="inline-flex items-center gap-1 text-ai-500 hover:text-ai-700 transition-colors"
+            >
+              <Plus size={12} strokeWidth={1.5} />
+              Add cost
+            </button>
+
+            <div className="ml-auto flex gap-4">
               {activity.googleMapsUrl && (
                 <a
                   href={activity.googleMapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-japan-red hover:text-japan-slate transition-colors text-sm font-medium flex items-center gap-1"
+                  className="inline-flex items-center gap-1 text-sumi-500 hover:text-ai-500 transition-colors"
                 >
-                  <MapIcon size={16} />
+                  <MapIcon size={12} strokeWidth={1.5} />
                   Maps
-                  <ExternalLink size={14} />
                 </a>
               )}
-
               {activity.externalUrl && (
                 <a
                   href={activity.externalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-japan-red hover:text-japan-slate transition-colors text-sm font-medium flex items-center gap-1"
+                  className="inline-flex items-center gap-1 text-sumi-500 hover:text-ai-500 transition-colors"
                 >
-                  <ExternalLink size={16} />
+                  <ExternalLink size={12} strokeWidth={1.5} />
                   Link
                 </a>
               )}
             </div>
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2 flex-shrink-0">
-          <button
-            onClick={onEdit}
-            className="p-2 text-gray-600 hover:bg-blue-100 hover:text-blue-600 rounded-lg transition-colors"
-            title="Edit activity"
-          >
-            <Edit2 size={18} />
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="p-2 text-gray-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-colors disabled:opacity-50"
-            title="Delete activity"
-          >
-            <Trash2 size={18} />
-          </button>
         </div>
       </div>
 

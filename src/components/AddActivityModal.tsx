@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 import { X, Utensils, MapPin, Navigation, Ticket } from 'lucide-react'
 
 interface Activity {
-  _id: string
-  dayId: string
+  _id: Id<'activities'>
+  dayId: Id<'days'>
   name: string
   type: 'activity' | 'food' | 'logistics' | 'ticket'
   time?: string
@@ -19,17 +20,17 @@ interface Activity {
 
 interface AddActivityModalProps {
   dayNumber: number
-  dayId: string
+  dayId: Id<'days'>
   editingActivity: Activity | null
   onClose: () => void
 }
 
 const ACTIVITY_TYPES = [
-  { value: 'activity', label: 'Activity', icon: MapPin, color: 'text-green-600' },
-  { value: 'food', label: 'Food', icon: Utensils, color: 'text-orange-600' },
-  { value: 'logistics', label: 'Logistics', icon: Navigation, color: 'text-blue-600' },
-  { value: 'ticket', label: 'Ticket', icon: Ticket, color: 'text-purple-600' },
-]
+  { value: 'activity', label: 'Activity', jp: '体験', icon: MapPin },
+  { value: 'food', label: 'Food', jp: '食', icon: Utensils },
+  { value: 'logistics', label: 'Logistics', jp: '移動', icon: Navigation },
+  { value: 'ticket', label: 'Ticket', jp: '切符', icon: Ticket },
+] as const
 
 export default function AddActivityModal({ dayNumber, dayId, editingActivity, onClose }: AddActivityModalProps) {
   const [formData, setFormData] = useState({
@@ -65,169 +66,153 @@ export default function AddActivityModal({ dayNumber, dayId, editingActivity, on
       }
 
       if (editingActivity) {
-        await updateActivity({
-          id: editingActivity._id,
-          ...activityData,
-        })
+        await updateActivity({ id: editingActivity._id, ...activityData })
       } else {
-        await createActivity({
-          dayId,
-          ...activityData,
-          order: 0,
-        })
+        await createActivity({ dayId, ...activityData, order: 0 })
       }
-
       onClose()
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const selectedTypeIcon = ACTIVITY_TYPES.find((t) => t.value === formData.type)
-
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scale-in">
+    <div className="fixed inset-0 bg-sumi-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-washi-50 border border-washi-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-scale-in shadow-washi-hover">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-japan-slate">
-            {editingActivity ? 'Edit Activity' : 'Add Activity'}
-          </h2>
+        <div className="sticky top-0 bg-washi-50 border-b border-washi-200 px-8 py-5 flex items-center justify-between z-10">
+          <div>
+            <p className="mincho-label">Day {dayNumber.toString().padStart(2, '0')}</p>
+            <h2 className="font-serif text-2xl text-sumi-900">
+              {editingActivity ? 'Edit entry' : 'New entry'}
+            </h2>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-600 hover:text-japan-slate transition-colors"
+            className="text-sumi-500 hover:text-sumi-900 transition-colors p-2"
+            aria-label="Close"
           >
-            <X size={24} />
+            <X size={20} strokeWidth={1.5} />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Activity Name */}
+        <form onSubmit={handleSubmit} className="px-8 py-8 space-y-7">
+          {/* Name */}
           <div>
-            <label className="block text-sm font-bold text-japan-slate mb-2">Activity Name *</label>
+            <label className="mincho-label block mb-2">Name</label>
             <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red"
-              placeholder="e.g., Senso-ji Temple"
+              className="input-minimal text-lg"
+              placeholder="Senso-ji Temple"
             />
           </div>
 
-          {/* Activity Type */}
+          {/* Type */}
           <div>
-            <label className="block text-sm font-bold text-japan-slate mb-3">Type</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <label className="mincho-label block mb-3">Type</label>
+            <div className="grid grid-cols-4 gap-3">
               {ACTIVITY_TYPES.map((typeOption) => {
-                const IconComponent = typeOption.icon
+                const Icon = typeOption.icon
+                const active = formData.type === typeOption.value
                 return (
                   <button
                     key={typeOption.value}
                     type="button"
-                    onClick={() => setFormData({ ...formData, type: typeOption.value as any })}
-                    className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
-                      formData.type === typeOption.value
-                        ? 'border-japan-red bg-japan-cream'
-                        : 'border-gray-300 bg-white hover:border-gray-400'
+                    onClick={() => setFormData({ ...formData, type: typeOption.value })}
+                    className={`p-4 border transition-all flex flex-col items-center gap-2 ${
+                      active
+                        ? 'border-ai-500 bg-ai-50 text-ai-500'
+                        : 'border-washi-200 bg-white/40 text-sumi-600 hover:border-sumi-400'
                     }`}
                   >
-                    <IconComponent size={24} className={typeOption.color} />
-                    <span className="text-sm font-medium text-japan-slate">{typeOption.label}</span>
+                    <span className={`font-serif text-sm tracking-mincho-wide ${active ? 'text-ai-500' : 'text-sumi-500'}`}>
+                      {typeOption.jp}
+                    </span>
+                    <Icon size={14} strokeWidth={1.5} />
+                    <span className="text-xs tracking-wide">{typeOption.label}</span>
                   </button>
                 )
               })}
             </div>
           </div>
 
-          {/* Time */}
-          <div>
-            <label className="block text-sm font-bold text-japan-slate mb-2">Time</label>
-            <input
-              type="time"
-              value={formData.time}
-              onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red"
-            />
+          {/* Time + Location */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="mincho-label block mb-2">Time</label>
+              <input
+                type="time"
+                value={formData.time}
+                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                className="input-minimal"
+              />
+            </div>
+            <div>
+              <label className="mincho-label block mb-2">Location</label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                className="input-minimal"
+                placeholder="Asakusa, Tokyo"
+              />
+            </div>
           </div>
 
-          {/* Location */}
+          {/* URLs */}
           <div>
-            <label className="block text-sm font-bold text-japan-slate mb-2">Location</label>
-            <input
-              type="text"
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red"
-              placeholder="e.g., Asakusa, Tokyo"
-            />
-          </div>
-
-          {/* Google Maps URL */}
-          <div>
-            <label className="block text-sm font-bold text-japan-slate mb-2">Google Maps URL</label>
+            <label className="mincho-label block mb-2">Google Maps</label>
             <input
               type="url"
               value={formData.googleMapsUrl}
               onChange={(e) => setFormData({ ...formData, googleMapsUrl: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red"
-              placeholder="https://maps.google.com/..."
+              className="input-minimal text-sm"
+              placeholder="https://maps.google.com/…"
             />
           </div>
-
-          {/* External URL */}
           <div>
-            <label className="block text-sm font-bold text-japan-slate mb-2">External Link</label>
+            <label className="mincho-label block mb-2">External link</label>
             <input
               type="url"
               value={formData.externalUrl}
               onChange={(e) => setFormData({ ...formData, externalUrl: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red"
-              placeholder="https://example.com/..."
+              className="input-minimal text-sm"
+              placeholder="https://example.com/…"
             />
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-bold text-japan-slate mb-2">Notes</label>
+            <label className="mincho-label block mb-2">Notes</label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red h-20 resize-none"
-              placeholder="Add any additional details..."
+              className="input-bordered h-24 resize-none leading-relaxed"
+              placeholder="Any additional details…"
             />
           </div>
 
-          {/* Booked Status */}
-          <div className="flex items-center gap-2">
+          {/* Booked */}
+          <label className="flex items-center gap-3 cursor-pointer select-none">
             <input
               type="checkbox"
-              id="isBooked"
               checked={formData.isBooked}
               onChange={(e) => setFormData({ ...formData, isBooked: e.target.checked })}
-              className="w-4 h-4 accent-japan-red cursor-pointer"
+              className="w-4 h-4 accent-ai-500 cursor-pointer"
             />
-            <label htmlFor="isBooked" className="font-medium text-japan-slate cursor-pointer">
-              Mark as booked
-            </label>
-          </div>
+            <span className="text-sm text-sumi-800 tracking-wide">Mark as booked</span>
+          </label>
 
           {/* Actions */}
-          <div className="flex gap-4 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 rounded-lg border-2 border-gray-300 text-japan-slate font-medium hover:border-japan-slate transition-colors"
-            >
+          <div className="flex gap-3 pt-6 border-t border-washi-200">
+            <button type="button" onClick={onClose} className="btn-ghost flex-1">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 px-4 py-3 rounded-lg bg-japan-red text-white font-medium hover:bg-japan-slate transition-colors disabled:opacity-50"
-            >
-              {isSubmitting ? 'Saving...' : editingActivity ? 'Update Activity' : 'Add Activity'}
+            <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">
+              {isSubmitting ? 'Saving…' : editingActivity ? 'Update' : 'Add entry'}
             </button>
           </div>
         </form>

@@ -1,8 +1,6 @@
 import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import { format, parse } from 'date-fns'
-import { Plane, Users, MapPin, Clock, ExternalLink, Hotel, Train } from 'lucide-react'
-import FlightCard from '../components/FlightCard'
+import { Plane, MapPin, ExternalLink, Hotel, Train } from 'lucide-react'
 
 interface TravelInfo {
   _id: string
@@ -16,209 +14,180 @@ interface TravelInfo {
   order: number
 }
 
+const TIPS = [
+  'Download offline maps in Google Maps before departure.',
+  'Pick up a pocket WiFi or eSIM at the airport on arrival.',
+  'Buy a Suica or Pasmo card for quiet, contactless transit.',
+  'Keep a hotel business card on you for taxi drivers.',
+  'Pack layers — June weather shifts from mild to humid.',
+]
+
+function SectionHeading({ jp, en, title, icon: Icon }: { jp: string; en: string; title: string; icon: typeof Plane }) {
+  return (
+    <div className="flex items-center gap-4 mb-6">
+      <Icon size={18} strokeWidth={1.5} className="text-ai-500" />
+      <div>
+        <p className="mincho-label">{jp} · {en}</p>
+        <h2 className="font-serif text-2xl text-sumi-900">{title}</h2>
+      </div>
+    </div>
+  )
+}
+
 export default function TravelInfo() {
   const travelData = useQuery(api.travelInfo.list) as TravelInfo[] | undefined
 
   const flights = travelData?.filter((t) => t.type === 'flight') || []
   const outboundFlight = flights.find((f) => f.title.includes('Outbound'))
   const returnFlights = flights.filter((f) => f.title.includes('Return'))
+  const hotels = travelData?.filter((t) => t.type === 'hotel') || []
 
   return (
-    <div className="space-y-8 animate-fade-in pb-8">
+    <div className="space-y-16 pb-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-japan-slate mb-2">Travel Information</h1>
-        <p className="text-gray-600">All your flight, hotel, and transportation details in one place</p>
-      </div>
+      <section className="relative overflow-hidden">
+        <div className="kanji-watermark text-[16rem] md:text-[22rem] leading-none -top-12 -right-4">
+          旅
+        </div>
+        <div className="relative">
+          <p className="mincho-label mb-4">旅情報 · Travel</p>
+          <h1 className="font-serif text-5xl md:text-6xl text-sumi-900 leading-none tracking-mincho mb-4">
+            Getting there.<br />Getting around.
+          </h1>
+          <p className="text-sumi-600 max-w-xl leading-relaxed">
+            Flights, rail, hotels, and the small rituals of moving through Japan.
+          </p>
+        </div>
+      </section>
 
-      {/* Flights Section */}
-      <section className="space-y-4">
-        <h2 className="text-2xl font-bold text-japan-slate flex items-center gap-2">
-          <Plane size={28} className="text-japan-red" />
-          Flights
-        </h2>
+      {/* Flights */}
+      <section>
+        <SectionHeading jp="空" en="Flights" title="Flights" icon={Plane} />
 
-        <div className="grid grid-cols-1 gap-6">
-          {outboundFlight && (
-            <div className="bg-white rounded-lg p-8 card-shadow border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-2xl font-bold text-japan-slate">{outboundFlight.title}</h3>
-                {outboundFlight.bookingReference && (
-                  <div className="bg-japan-cream border-2 border-japan-red rounded-lg px-4 py-2">
-                    <p className="text-xs text-gray-600">Booking Ref</p>
-                    <p className="text-lg font-bold text-japan-red">{outboundFlight.bookingReference}</p>
-                  </div>
-                )}
-              </div>
-              <p className="text-gray-700 whitespace-pre-wrap">{outboundFlight.details}</p>
-            </div>
-          )}
-
+        <div className="space-y-6">
+          {outboundFlight && <FlightDetail flight={outboundFlight} />}
           {returnFlights.map((flight) => (
-            <div key={flight._id} className="bg-white rounded-lg p-8 card-shadow border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-2xl font-bold text-japan-slate">{flight.title}</h3>
-                {flight.bookingReference && (
-                  <div className="bg-japan-cream border-2 border-japan-red rounded-lg px-4 py-2">
-                    <p className="text-xs text-gray-600">Booking Ref</p>
-                    <p className="text-lg font-bold text-japan-red">{flight.bookingReference}</p>
-                  </div>
-                )}
-              </div>
-              <p className="text-gray-700 whitespace-pre-wrap">{flight.details}</p>
-            </div>
+            <FlightDetail key={flight._id} flight={flight} />
           ))}
 
           {flights.length === 0 && (
-            <div className="bg-white rounded-lg p-8 text-center card-shadow border border-gray-100">
-              <Plane size={48} className="mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-600">No flight information available yet</p>
+            <div className="border border-dashed border-washi-200 py-16 text-center">
+              <Plane size={28} strokeWidth={1} className="mx-auto text-sumi-300 mb-3" />
+              <p className="text-sm text-sumi-500 tracking-wide">No flight information yet.</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* Transport Information */}
-      <section className="space-y-4">
-        <h3 className="text-2xl font-bold text-japan-slate flex items-center gap-2">
-          <Train size={28} className="text-japan-red" />
-          Getting Around
-        </h3>
+      {/* Transport */}
+      <section>
+        <SectionHeading jp="交通" en="Transit" title="Getting around" icon={Train} />
 
-        <div className="grid grid-cols-1 gap-4">
-          {/* JR Pass */}
-          <div className="bg-white rounded-lg p-6 card-shadow border border-gray-100 hover:shadow-lg transition-smooth">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h4 className="font-bold text-japan-slate text-lg mb-2">JR Pass (Japan Rail Pass)</h4>
-                <p className="text-gray-600 text-sm mb-4">Nationwide rail network for trains and buses</p>
-              </div>
-              <Train className="text-japan-red flex-shrink-0" size={28} />
-            </div>
-            <a
-              href="https://www.jrpass.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-japan-red hover:text-japan-slate transition-colors font-medium"
-            >
-              Learn More <ExternalLink size={16} />
-            </a>
-          </div>
-
-          {/* Scenic Trains */}
-          <div className="bg-white rounded-lg p-6 card-shadow border border-gray-100 hover:shadow-lg transition-smooth">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h4 className="font-bold text-japan-slate text-lg mb-2">Scenic Train Routes</h4>
-                <p className="text-gray-600 text-sm mb-4">Beautiful train journeys with stunning views</p>
-              </div>
-              <Train className="text-japan-red flex-shrink-0" size={28} />
-            </div>
-            <div className="space-y-3">
-              <a
-                href="https://www.hyperdia.com/en/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-japan-red hover:text-japan-slate transition-colors text-sm font-medium flex items-center gap-2"
-              >
-                Hyperdia - Train Schedule Search <ExternalLink size={14} />
-              </a>
-              <a
-                href="https://tabist.com/en/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-japan-red hover:text-japan-slate transition-colors text-sm font-medium flex items-center gap-2"
-              >
-                Tabist - Travel Planning <ExternalLink size={14} />
-              </a>
-            </div>
-          </div>
-
-          {/* Local Transport */}
-          <div className="bg-white rounded-lg p-6 card-shadow border border-gray-100 hover:shadow-lg transition-smooth">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h4 className="font-bold text-japan-slate text-lg mb-2">City Transport</h4>
-                <p className="text-gray-600 text-sm mb-4">Subways, buses, and taxis in major cities</p>
-              </div>
-              <MapPin className="text-japan-red flex-shrink-0" size={28} />
-            </div>
-            <div className="space-y-3 text-sm">
-              <div>
-                <p className="font-medium text-japan-slate mb-1">Tokyo</p>
-                <a
-                  href="https://www.tokyometro.jp/en/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-japan-red hover:text-japan-slate transition-colors flex items-center gap-2"
-                >
-                  Tokyo Metro <ExternalLink size={14} />
-                </a>
-              </div>
-              <div>
-                <p className="font-medium text-japan-slate mb-1">Kyoto</p>
-                <a
-                  href="https://en.kyoto-bus.jp/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-japan-red hover:text-japan-slate transition-colors flex items-center gap-2"
-                >
-                  Kyoto Bus System <ExternalLink size={14} />
-                </a>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-washi-200 border border-washi-200">
+          <TransportCard title="JR Pass" subtitle="Nationwide rail network" href="https://www.jrpass.com" label="Learn more" />
+          <TransportCard title="Hyperdia" subtitle="Train timetable search" href="https://www.hyperdia.com/en/" label="Search" />
+          <TransportCard title="Tokyo Metro" subtitle="Subway map & fares" href="https://www.tokyometro.jp/en/" label="Open" />
         </div>
       </section>
 
-      {/* Hotels Section */}
-      {travelData && travelData.filter((t) => t.type === 'hotel').length > 0 && (
-        <section className="space-y-4">
-          <h3 className="text-2xl font-bold text-japan-slate flex items-center gap-2">
-            <Hotel size={28} className="text-japan-red" />
-            Accommodations
-          </h3>
+      {/* Hotels */}
+      {hotels.length > 0 && (
+        <section>
+          <SectionHeading jp="宿" en="Hotels" title="Accommodations" icon={Hotel} />
 
-          <div className="grid grid-cols-1 gap-4">
-            {travelData.filter((t) => t.type === 'hotel').map((hotel) => (
-              <div key={hotel._id} className="bg-white rounded-lg p-6 card-shadow border border-gray-100">
-                <h4 className="font-bold text-japan-slate text-lg mb-2">{hotel.title}</h4>
-                <p className="text-gray-700 whitespace-pre-wrap mb-3">{hotel.details}</p>
-                {hotel.bookingReference && (
-                  <p className="text-sm font-medium text-japan-slate">Booking Ref: {hotel.bookingReference}</p>
-                )}
+          <div className="space-y-4">
+            {hotels.map((hotel) => (
+              <div key={hotel._id} className="border border-washi-200 bg-white/60 p-6">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <h3 className="font-serif text-xl text-sumi-900">{hotel.title}</h3>
+                  {hotel.bookingReference && (
+                    <div className="text-right">
+                      <p className="mincho-label">Ref</p>
+                      <p className="font-serif text-sm text-ai-500 tracking-wider">
+                        {hotel.bookingReference}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-sumi-700 whitespace-pre-wrap leading-relaxed">
+                  {hotel.details}
+                </p>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Travel Tips */}
-      <section className="bg-gradient-to-r from-sakura-pink/10 to-japan-red/10 rounded-lg p-8 border-2 border-sakura-pink/30">
-        <h3 className="text-2xl font-bold text-japan-slate mb-4">Travel Tips</h3>
-        <ul className="space-y-3 text-gray-700">
-          <li className="flex gap-3">
-            <span className="text-japan-red font-bold flex-shrink-0">✓</span>
-            <span>Download offline maps for Google Maps before your trip</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="text-japan-red font-bold flex-shrink-0">✓</span>
-            <span>Get a SIM card or pocket WiFi at the airport</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="text-japan-red font-bold flex-shrink-0">✓</span>
-            <span>Purchase an IC card (Suica/Pasmo) for convenient transit payments</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="text-japan-red font-bold flex-shrink-0">✓</span>
-            <span>Keep hotel business cards with you for taxi drivers</span>
-          </li>
-          <li className="flex gap-3">
-            <span className="text-japan-red font-bold flex-shrink-0">✓</span>
-            <span>Check weather forecasts and pack accordingly</span>
-          </li>
+      {/* Tips */}
+      <section>
+        <SectionHeading jp="心得" en="Tips" title="Small knowings" icon={MapPin} />
+
+        <ul className="border-t border-washi-200">
+          {TIPS.map((tip, idx) => (
+            <li
+              key={idx}
+              className="border-b border-washi-200 py-4 flex items-baseline gap-4 text-sumi-700 leading-relaxed"
+            >
+              <span className="font-serif text-ai-500 text-sm tracking-mincho-wide">
+                {(idx + 1).toString().padStart(2, '0')}
+              </span>
+              <span>{tip}</span>
+            </li>
+          ))}
         </ul>
       </section>
     </div>
+  )
+}
+
+function FlightDetail({ flight }: { flight: TravelInfo }) {
+  return (
+    <div className="border border-washi-200 bg-white/60">
+      <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-washi-200">
+        <div>
+          <p className="mincho-label mb-1">Flight</p>
+          <h3 className="font-serif text-2xl text-sumi-900">{flight.title}</h3>
+        </div>
+        {flight.bookingReference && (
+          <div className="text-right border-l border-washi-200 pl-6">
+            <p className="mincho-label mb-1">Booking Ref</p>
+            <p className="font-serif text-lg text-ai-500 tracking-wider">
+              {flight.bookingReference}
+            </p>
+          </div>
+        )}
+      </div>
+      <div className="px-6 py-5">
+        <p className="text-sm text-sumi-700 whitespace-pre-wrap leading-relaxed">{flight.details}</p>
+      </div>
+    </div>
+  )
+}
+
+function TransportCard({
+  title,
+  subtitle,
+  href,
+  label,
+}: {
+  title: string
+  subtitle: string
+  href: string
+  label: string
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="bg-washi-50 hover:bg-white transition-smooth px-6 py-8 group block"
+    >
+      <p className="font-serif text-lg text-sumi-900 mb-1">{title}</p>
+      <p className="text-xs text-sumi-500 tracking-wide mb-4">{subtitle}</p>
+      <span className="inline-flex items-center gap-1.5 text-xs text-ai-500 tracking-wide group-hover:gap-2 transition-all">
+        {label}
+        <ExternalLink size={12} strokeWidth={1.5} />
+      </span>
+    </a>
   )
 }

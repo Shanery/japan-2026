@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 import { X } from 'lucide-react'
 
 const CATEGORIES = ['Flights', 'Hotels', 'Transport', 'Food', 'Activities', 'Shopping', 'Other']
 
 interface AddLinkedBudgetItemModalProps {
-  activityId: string
+  activityId: Id<'activities'>
   activityName: string
   dayNumber: number
   defaultCategory: string
@@ -43,7 +44,7 @@ export default function AddLinkedBudgetItemModal({
         amountJPY: form.amountJPY ? parseFloat(form.amountJPY) : undefined,
         isPaid: form.isPaid,
         dayNumber,
-        activityId: activityId as any,
+        activityId,
         notes: form.notes || undefined,
       })
       onClose()
@@ -53,36 +54,44 @@ export default function AddLinkedBudgetItemModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto animate-scale-in">
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-japan-slate">Add Cost</h2>
-          <button onClick={onClose} className="text-gray-600 hover:text-japan-slate transition-colors">
-            <X size={24} />
+    <div className="fixed inset-0 bg-sumi-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-washi-50 border border-washi-200 max-w-lg w-full max-h-[90vh] overflow-y-auto animate-scale-in shadow-washi-hover">
+        <div className="sticky top-0 bg-washi-50 border-b border-washi-200 px-8 py-5 flex items-center justify-between z-10">
+          <div>
+            <p className="mincho-label">費用 · Cost</p>
+            <h2 className="font-serif text-2xl text-sumi-900">Add expense</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-sumi-500 hover:text-sumi-900 transition-colors p-2"
+            aria-label="Close"
+          >
+            <X size={20} strokeWidth={1.5} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <p className="text-sm text-gray-600">
-            Linked to: <span className="font-medium text-japan-slate">{activityName}</span>
+
+        <form onSubmit={handleSubmit} className="px-8 py-8 space-y-6">
+          <p className="text-xs text-sumi-500 tracking-wide">
+            Linked to <span className="font-serif text-sumi-900">「{activityName}」</span>
           </p>
 
           <div>
-            <label className="block text-sm font-bold text-japan-slate mb-2">Description *</label>
+            <label className="mincho-label block mb-2">Description</label>
             <input
               type="text"
               required
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red"
+              className="input-minimal"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-japan-slate mb-2">Category</label>
+            <label className="mincho-label block mb-2">Category</label>
             <select
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red"
+              className="input-bordered"
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -92,25 +101,25 @@ export default function AddLinkedBudgetItemModal({
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-bold text-japan-slate mb-2">AUD</label>
+              <label className="mincho-label block mb-2">AUD</label>
               <input
                 type="number"
                 value={form.amountAUD}
                 onChange={(e) => setForm({ ...form, amountAUD: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red"
+                className="input-minimal font-serif text-xl"
                 placeholder="0.00"
                 step="0.01"
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-japan-slate mb-2">JPY</label>
+              <label className="mincho-label block mb-2">JPY</label>
               <input
                 type="number"
                 value={form.amountJPY}
                 onChange={(e) => setForm({ ...form, amountJPY: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red"
+                className="input-minimal font-serif text-xl"
                 placeholder="0"
                 step="1"
               />
@@ -118,41 +127,30 @@ export default function AddLinkedBudgetItemModal({
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-japan-slate mb-2">Notes</label>
+            <label className="mincho-label block mb-2">Notes</label>
             <textarea
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-japan-red h-20 resize-none"
+              className="input-bordered h-20 resize-none leading-relaxed"
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <label className="flex items-center gap-3 cursor-pointer select-none">
             <input
               type="checkbox"
-              id="isPaid"
               checked={form.isPaid}
               onChange={(e) => setForm({ ...form, isPaid: e.target.checked })}
-              className="w-4 h-4 accent-japan-red cursor-pointer"
+              className="w-4 h-4 accent-ai-500 cursor-pointer"
             />
-            <label htmlFor="isPaid" className="font-medium text-japan-slate cursor-pointer">
-              Mark as paid
-            </label>
-          </div>
+            <span className="text-sm text-sumi-800 tracking-wide">Mark as paid</span>
+          </label>
 
-          <div className="flex gap-4 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 rounded-lg border-2 border-gray-300 text-japan-slate font-medium hover:border-japan-slate transition-colors"
-            >
+          <div className="flex gap-3 pt-6 border-t border-washi-200">
+            <button type="button" onClick={onClose} className="btn-ghost flex-1">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 px-4 py-3 rounded-lg bg-japan-red text-white font-medium hover:bg-japan-slate transition-colors disabled:opacity-50"
-            >
-              {isSubmitting ? 'Saving...' : 'Add Cost'}
+            <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">
+              {isSubmitting ? 'Saving…' : 'Add cost'}
             </button>
           </div>
         </form>

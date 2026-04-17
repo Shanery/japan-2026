@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 import { format } from 'date-fns'
 import { Upload, Plus, X, ArrowLeft, Image as ImageIcon } from 'lucide-react'
 
@@ -30,14 +31,13 @@ export default function Memories() {
 
   const dayNumber = dayNumberParam ? parseInt(dayNumberParam) : undefined
 
-  // Get the day first to get its ID
   const dayData = dayNumber ? useQuery(api.days.getByNumber, { dayNumber }) : undefined
   const memories = dayData ? useQuery(api.memories.listByDay, { dayId: dayData._id }) : undefined
 
   const createMemory = useMutation(api.memories.create)
   const generateUploadUrl = useMutation(api.memories.generateUploadUrl)
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetDayId: string) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetDayId: Id<'days'>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -52,7 +52,6 @@ export default function Memories() {
 
       if (response.ok) {
         const result = await response.json()
-        // Create a memory with just the photo
         await createMemory({
           dayId: targetDayId,
           note: '',
@@ -62,15 +61,12 @@ export default function Memories() {
       }
     } finally {
       setUploadingDayNumber(null)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
-  const handleAddNote = async (targetDayId: string) => {
+  const handleAddNote = async (targetDayId: Id<'days'>) => {
     if (!noteText.trim()) return
-
     await createMemory({
       dayId: targetDayId,
       note: noteText,
@@ -80,144 +76,165 @@ export default function Memories() {
     setNoteText('')
   }
 
+  // Index view — all days
   if (!dayNumber) {
-    // Show all days with memory count
-    const daysWithMemories = Array.from({ length: 17 }).map((_, i) => {
-      const num = i + 1
-      return { dayNumber: num }
-    })
+    const daysWithMemories = Array.from({ length: 17 }).map((_, i) => ({ dayNumber: i + 1 }))
 
     return (
-      <div className="space-y-8 animate-fade-in pb-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-japan-slate mb-2">Trip Memories</h1>
-          <p className="text-gray-600">Relive your favorite moments from each day</p>
-        </div>
+      <div className="space-y-16 pb-8">
+        <section className="relative overflow-hidden">
+          <div className="kanji-watermark text-[16rem] md:text-[22rem] leading-none -top-12 -right-4">
+            思
+          </div>
+          <div className="relative">
+            <p className="mincho-label mb-4">思い出 · Memories</p>
+            <h1 className="font-serif text-5xl md:text-6xl text-sumi-900 leading-none tracking-mincho mb-4">
+              Moments, kept.
+            </h1>
+            <p className="text-sumi-600 max-w-xl leading-relaxed">
+              A quiet archive of photographs and notes — one day at a time.
+            </p>
+          </div>
+        </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {daysWithMemories.map((day) => {
-            const dayMemories = memories?.filter((m: Memory) => {
-              // This is a simplified view - in reality we'd need to check if memory belongs to this day
-              return true
-            }) || []
-            const totalPhotos = dayMemories.reduce((sum, m) => sum + m.photoIds.length, 0)
-
-            return (
-              <Link
-                key={day.dayNumber}
-                to={`/memories/${day.dayNumber}`}
-                className="bg-white rounded-lg p-4 card-shadow hover:shadow-lg transition-smooth border border-gray-100 text-center group"
-              >
-                <div className="text-3xl font-bold text-japan-red group-hover:text-japan-slate transition-colors mb-2">
-                  Day {day.dayNumber}
-                </div>
-                <p className="text-sm text-gray-600 mb-3">{format(getDayDate(day.dayNumber), 'MMM d')}</p>
-                <div className="flex items-center justify-center gap-2 bg-japan-cream rounded px-3 py-2">
-                  <ImageIcon size={16} className="text-japan-red" />
-                  <span className="font-bold text-japan-slate">{totalPhotos}</span>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
+        <section>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-px bg-washi-200 border border-washi-200">
+            {daysWithMemories.map((day) => {
+              const totalPhotos = 0
+              return (
+                <Link
+                  key={day.dayNumber}
+                  to={`/memories/${day.dayNumber}`}
+                  className="bg-washi-50 hover:bg-white transition-smooth px-5 py-6 text-center group"
+                >
+                  <p className="mincho-label mb-2">Day</p>
+                  <p className="font-serif text-3xl text-sumi-900 group-hover:text-ai-500 transition-colors leading-none mb-2">
+                    {day.dayNumber.toString().padStart(2, '0')}
+                  </p>
+                  <p className="text-xs text-sumi-500 tracking-wide mb-4">
+                    {format(getDayDate(day.dayNumber), 'MMM d')}
+                  </p>
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-sumi-600">
+                    <ImageIcon size={12} strokeWidth={1.5} />
+                    <span>{totalPhotos}</span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
       </div>
     )
   }
 
-  // Show single day memories
-  if (!dayNumber || !dayData) return null
+  if (!dayData) return null
 
   const dayMemories = memories || []
   const allPhotoIds = dayMemories.flatMap((m: Memory) => m.photoIds)
-  const allNotes = dayMemories.filter((m: Memory) => m.note && m.note.trim()).map((m: Memory) => ({ _id: m._id, note: m.note, timestamp: m.timestamp }))
+  const allNotes = dayMemories
+    .filter((m: Memory) => m.note && m.note.trim())
+    .map((m: Memory) => ({ _id: m._id, note: m.note, timestamp: m.timestamp }))
 
   return (
-    <div className="space-y-8 animate-fade-in pb-8">
+    <div className="space-y-16 pb-8">
+      {/* Back link */}
+      <Link
+        to="/memories"
+        className="inline-flex items-center gap-2 text-sm text-sumi-500 hover:text-ai-500 tracking-wide transition-colors"
+      >
+        <ArrowLeft size={14} strokeWidth={1.5} />
+        <span>All memories</span>
+      </Link>
+
       {/* Header */}
-      <div className="mb-8">
-        <Link to="/memories" className="flex items-center gap-2 text-japan-red hover:text-japan-slate transition-colors mb-4">
-          <ArrowLeft size={20} />
-          <span>Back to All Memories</span>
-        </Link>
+      <section>
+        <p className="mincho-label mb-4">Day {dayNumber.toString().padStart(2, '0')}</p>
+        <h1 className="font-serif text-5xl md:text-6xl text-sumi-900 leading-none tracking-mincho mb-4">
+          {dayData.city}
+        </h1>
+        <p className="text-sumi-500 tracking-wide text-sm">
+          {format(getDayDate(dayNumber), 'EEEE, MMMM d, yyyy')}
+        </p>
+      </section>
 
-        <div className="bg-white rounded-lg p-8 shadow-md border border-gray-100">
-          <h1 className="text-4xl font-bold text-japan-slate mb-2">Day {dayNumber} Memories</h1>
-          <p className="text-gray-600">{format(getDayDate(dayNumber), 'EEEE, MMMM d, yyyy')}</p>
+      {/* Photos */}
+      <section>
+        <div className="flex items-baseline justify-between mb-6">
+          <div>
+            <p className="mincho-label mb-1">写真 · Photographs</p>
+            <h2 className="font-serif text-2xl text-sumi-900">Photos</h2>
+          </div>
+          <p className="text-xs text-sumi-500 tracking-wide">{allPhotoIds.length} saved</p>
         </div>
-      </div>
-
-      {/* Photo Section */}
-      <section className="space-y-4">
-        <h2 className="text-2xl font-bold text-japan-slate">Photos</h2>
 
         {allPhotoIds.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
             {allPhotoIds.map((photoId, idx) => (
               <div
                 key={idx}
-                className="group cursor-pointer rounded-lg overflow-hidden card-shadow hover:shadow-lg transition-smooth bg-gray-200 aspect-square flex items-center justify-center"
+                className="group relative cursor-pointer overflow-hidden aspect-square border border-washi-200 bg-washi-100"
                 onClick={() => setLightboxImage(photoId)}
               >
-                <div className="w-full h-full bg-gradient-to-br from-japan-cream to-gray-100 flex items-center justify-center">
-                  <ImageIcon size={40} className="text-gray-400" />
+                <div className="w-full h-full flex items-center justify-center">
+                  <ImageIcon size={32} strokeWidth={1} className="text-sumi-300" />
                 </div>
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <span className="text-white font-medium">View</span>
+                <div className="absolute inset-0 bg-sumi-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-washi-50 text-xs tracking-mincho-wide uppercase">View</span>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        <div className="bg-white rounded-lg p-6 card-shadow border border-gray-100">
-          <label className="flex items-center justify-center gap-3 cursor-pointer hover:bg-japan-cream/50 transition-colors p-6 rounded-lg border-2 border-dashed border-japan-red/30">
-            <Upload size={24} className="text-japan-red" />
-            <div>
-              <p className="font-medium text-japan-slate">Upload Photo</p>
-              <p className="text-sm text-gray-600">Click to select a photo</p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={(e) => handlePhotoUpload(e, dayData._id)}
-              disabled={uploadingDayNumber !== null}
-              className="hidden"
-            />
-          </label>
-          {uploadingDayNumber === dayNumber && <p className="text-center text-gray-600 mt-4">Uploading...</p>}
-        </div>
+        <label className="block border border-dashed border-washi-300 hover:border-ai-500 hover:bg-washi-100/40 transition-colors p-10 cursor-pointer text-center">
+          <Upload size={20} strokeWidth={1.5} className="mx-auto text-ai-500 mb-3" />
+          <p className="font-serif text-sumi-900">Upload a photograph</p>
+          <p className="text-xs text-sumi-500 mt-1 tracking-wide">Click to select a file</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => handlePhotoUpload(e, dayData._id)}
+            disabled={uploadingDayNumber !== null}
+            className="hidden"
+          />
+          {uploadingDayNumber === dayNumber && (
+            <p className="text-sm text-sumi-500 mt-3 tracking-wide">Uploading…</p>
+          )}
+        </label>
       </section>
 
-      {/* Notes Section */}
-      <section className="space-y-4">
-        <h2 className="text-2xl font-bold text-japan-slate">Journal Notes</h2>
+      {/* Notes */}
+      <section>
+        <div className="mb-6">
+          <p className="mincho-label mb-1">日記 · Journal</p>
+          <h2 className="font-serif text-2xl text-sumi-900">Notes</h2>
+        </div>
 
         {allNotes.length > 0 && (
-          <div className="space-y-4 mb-6">
+          <div className="space-y-3 mb-6">
             {allNotes.map((noteEntry) => (
-              <div key={noteEntry._id} className="bg-white rounded-lg p-6 card-shadow border border-gray-100">
-                <p className="text-sm text-gray-500 mb-2">{format(new Date(noteEntry.timestamp), 'p')}</p>
-                <p className="text-gray-700 whitespace-pre-wrap">{noteEntry.note}</p>
+              <div key={noteEntry._id} className="accent-rule py-3">
+                <p className="mincho-label mb-2">{format(new Date(noteEntry.timestamp), 'p')}</p>
+                <p className="text-sumi-800 whitespace-pre-wrap leading-relaxed">{noteEntry.note}</p>
               </div>
             ))}
           </div>
         )}
 
-        <div className="bg-white rounded-lg p-6 card-shadow border border-gray-100">
-          <label className="block font-medium text-japan-slate mb-3">Add a Note</label>
+        <div>
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Write about your favorite moments, food you tried, people you met..."
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-japan-red h-24 resize-none"
+            placeholder="Write about the day — what you ate, what you saw, who you met…"
+            className="input-bordered h-32 resize-none leading-relaxed"
           />
           <button
             onClick={() => handleAddNote(dayData._id)}
-            className="mt-4 bg-japan-red text-white px-4 py-2 rounded-lg hover:bg-japan-slate transition-colors font-medium flex items-center gap-2"
+            className="btn-primary mt-4"
           >
-            <Plus size={18} />
-            Save Note
+            <Plus size={14} strokeWidth={1.5} />
+            Save note
           </button>
         </div>
       </section>
@@ -225,19 +242,17 @@ export default function Memories() {
       {/* Lightbox */}
       {lightboxImage && (
         <div
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-sumi-900/90 z-50 flex items-center justify-center p-4"
           onClick={() => setLightboxImage(null)}
         >
           <button
             onClick={() => setLightboxImage(null)}
-            className="absolute top-4 right-4 bg-white rounded-full p-2 hover:bg-gray-100 transition-colors"
+            className="absolute top-6 right-6 text-washi-50 hover:text-washi-200 transition-colors"
           >
-            <X size={24} className="text-japan-slate" />
+            <X size={24} strokeWidth={1.5} />
           </button>
-          <div className="max-w-4xl max-h-[80vh] flex items-center justify-center">
-            <div className="bg-gradient-to-br from-japan-cream to-gray-100 rounded-lg flex items-center justify-center w-full h-full">
-              <ImageIcon size={80} className="text-gray-400" />
-            </div>
+          <div className="max-w-4xl max-h-[80vh] w-full aspect-square flex items-center justify-center bg-washi-100">
+            <ImageIcon size={60} strokeWidth={1} className="text-sumi-300" />
           </div>
         </div>
       )}

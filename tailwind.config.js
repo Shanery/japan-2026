@@ -8,28 +8,53 @@ export default {
     extend: {
       fontFamily: {
         sans: ['"Noto Sans JP"', 'system-ui', 'sans-serif'],
+        serif: ['"Shippori Mincho B1"', '"Noto Serif JP"', 'Georgia', 'serif'],
       },
       colors: {
-        sakura: {
-          50: '#fef2f4',
-          100: '#fde6ea',
-          200: '#fbd0d9',
-          300: '#f7aabb',
-          400: '#f27a97',
-          500: '#e74d75',
-          600: '#d42a5e',
-          700: '#b21e4e',
-          800: '#951c47',
-          900: '#801b42',
+        washi: {
+          50: '#FBF9F4',
+          100: '#F5F1E8',
+          200: '#E8E0CE',
+          300: '#D9CFB5',
         },
-        japan: {
-          red: '#BC002D',
-          black: '#1a1a2e',
-          gold: '#C9A959',
-          cream: '#FAF7F0',
-          slate: '#2D3436',
-        }
-      }
+        sumi: {
+          100: '#F0EFF0',
+          200: '#E3E2E4',
+          300: '#C6C5C8',
+          400: '#9A9AA0',
+          500: '#6F6F76',
+          600: '#55555C',
+          700: '#3D3D42',
+          800: '#2B2B2E',
+          900: '#1A1A1A',
+        },
+        ai: {
+          50: '#EEF2F7',
+          100: '#D7DFEB',
+          200: '#A7B5CC',
+          300: '#6E86AC',
+          400: '#3F5C8A',
+          500: '#1F3A68',
+          600: '#17305A',
+          700: '#122749',
+          800: '#0E1E3A',
+          900: '#0A162D',
+        },
+        shu: '#B54C3A',
+        matcha: {
+          400: '#8BA67A',
+          500: '#6E8B5F',
+          600: '#587049',
+        },
+      },
+      letterSpacing: {
+        'mincho': '0.04em',
+        'mincho-wide': '0.12em',
+      },
+      boxShadow: {
+        'washi': '0 1px 2px 0 rgba(26, 26, 26, 0.04)',
+        'washi-hover': '0 2px 8px 0 rgba(26, 26, 26, 0.06)',
+      },
     },
   },
   plugins: [],

@@ -2,16 +2,16 @@ import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { Link } from 'react-router-dom'
 import { format, differenceInDays } from 'date-fns'
-import { Calendar, MapPin, DollarSign } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 const TRIP_START = new Date('2026-06-01')
 const TRIP_END = new Date('2026-06-17')
 
 const REGIONS = [
-  { name: 'Tokyo', days: '1-8', color: 'bg-blue-50 border-blue-200', textColor: 'text-blue-700', badge: 'bg-blue-100 text-blue-700' },
-  { name: 'Kyoto', days: '9-12', color: 'bg-purple-50 border-purple-200', textColor: 'text-purple-700', badge: 'bg-purple-100 text-purple-700' },
-  { name: 'Kyushu', days: '13-15', color: 'bg-green-50 border-green-200', textColor: 'text-green-700', badge: 'bg-green-100 text-green-700' },
-  { name: 'Return', days: '16-17', color: 'bg-gray-50 border-gray-200', textColor: 'text-gray-700', badge: 'bg-gray-100 text-gray-700' },
+  { name: 'Tokyo', jp: '東京', days: '1–8' },
+  { name: 'Kyoto', jp: '京都', days: '9–12' },
+  { name: 'Kyushu', jp: '九州', days: '13–15' },
+  { name: 'Return', jp: '帰路', days: '16–17' },
 ]
 
 function getRegionForDay(dayNumber: number): typeof REGIONS[0] {
@@ -35,79 +35,122 @@ export default function Dashboard() {
   const tripDuration = differenceInDays(TRIP_END, TRIP_START) + 1
 
   return (
-    <div className="space-y-8 animate-fade-in pb-8">
+    <div className="space-y-20 pb-8">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-japan-slate to-japan-slate/90 text-white rounded-xl p-8 shadow-lg">
-        <div className="text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Get Ready for Japan!</h2>
-          {daysUntilTrip > 0 ? (
-            <p className="text-lg text-gray-200">
-              <span className="text-3xl font-bold text-sakura-pink">{daysUntilTrip}</span> days until your adventure begins
-            </p>
-          ) : (
-            <p className="text-lg text-gray-200">Your trip is here!</p>
-          )}
-          <p className="text-sm text-gray-300 mt-2">{tripDuration} days | {format(TRIP_START, 'MMM d')} - {format(TRIP_END, 'MMM d, yyyy')}</p>
+      <section className="relative overflow-hidden">
+        <div className="kanji-watermark text-[18rem] md:text-[24rem] leading-none -top-12 -right-6 md:right-0">
+          旅
+        </div>
+        <div className="relative py-8 md:py-12">
+          <p className="mincho-label mb-6">序 · Prologue</p>
+          <h1 className="font-serif text-5xl md:text-7xl text-sumi-900 leading-tight tracking-mincho mb-8 max-w-2xl">
+            A journey <br className="hidden md:block" />
+            <span className="text-ai-500">into Japan.</span>
+          </h1>
+
+          <div className="flex flex-wrap items-end gap-x-12 gap-y-6 mt-10">
+            <div className="accent-rule">
+              <p className="mincho-label mb-1">Countdown</p>
+              {daysUntilTrip > 0 ? (
+                <p>
+                  <span className="font-serif text-5xl text-sumi-900">{daysUntilTrip}</span>
+                  <span className="ml-2 text-sm text-sumi-500 tracking-wide">days remaining</span>
+                </p>
+              ) : (
+                <p className="font-serif text-3xl text-sumi-900">Now</p>
+              )}
+            </div>
+
+            <div className="accent-rule">
+              <p className="mincho-label mb-1">Duration</p>
+              <p>
+                <span className="font-serif text-5xl text-sumi-900">{tripDuration}</span>
+                <span className="ml-2 text-sm text-sumi-500 tracking-wide">days</span>
+              </p>
+            </div>
+
+            <div className="accent-rule">
+              <p className="mincho-label mb-1">Dates</p>
+              <p className="font-serif text-2xl text-sumi-900">
+                {format(TRIP_START, 'MMM d')} — {format(TRIP_END, 'MMM d, yyyy')}
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Quick Budget Summary */}
       {budgetTotals && (
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg p-6 card-shadow border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Total Budget</p>
-                <p className="text-2xl font-bold text-japan-slate mt-2">A${budgetTotals.totalAUD.toFixed(2)}</p>
-              </div>
-              <DollarSign className="text-japan-red" size={32} />
+        <section>
+          <div className="flex items-baseline justify-between mb-8">
+            <div>
+              <p className="mincho-label mb-1">予算 · Budget</p>
+              <h2 className="font-serif text-2xl md:text-3xl text-sumi-900">At a glance</h2>
             </div>
+            <Link
+              to="/budget"
+              className="text-sm text-ai-500 hover:text-ai-700 flex items-center gap-1 tracking-wide"
+            >
+              View all <ArrowRight size={14} />
+            </Link>
           </div>
-          <div className="bg-white rounded-lg p-6 card-shadow border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">JPY Budget</p>
-                <p className="text-2xl font-bold text-japan-slate mt-2">¥{Math.round(budgetTotals.totalJPY)}</p>
-              </div>
-              <DollarSign className="text-japan-red" size={32} />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border-y border-washi-200">
+            <div className="px-6 py-8 border-b md:border-b-0 md:border-r border-washi-200">
+              <p className="mincho-label mb-3">Total · AUD</p>
+              <p className="font-serif text-3xl text-sumi-900">
+                A${budgetTotals.totalAUD.toFixed(0)}
+                <span className="text-base text-sumi-400">
+                  .{budgetTotals.totalAUD.toFixed(2).split('.')[1]}
+                </span>
+              </p>
             </div>
-          </div>
-          <div className="bg-white rounded-lg p-6 card-shadow border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium">Paid</p>
-                <p className="text-2xl font-bold text-japan-slate mt-2">A${budgetTotals.paidAUD.toFixed(2)}</p>
-                <p className="text-xs text-gray-500 mt-1">Remaining: A${budgetTotals.remainingAUD.toFixed(2)}</p>
-              </div>
-              <DollarSign className="text-japan-red" size={32} />
+            <div className="px-6 py-8 border-b md:border-b-0 md:border-r border-washi-200">
+              <p className="mincho-label mb-3">Total · JPY</p>
+              <p className="font-serif text-3xl text-sumi-900">
+                ¥{Math.round(budgetTotals.totalJPY).toLocaleString()}
+              </p>
+            </div>
+            <div className="px-6 py-8">
+              <p className="mincho-label mb-3">Paid · AUD</p>
+              <p className="font-serif text-3xl text-ai-500">
+                A${budgetTotals.paidAUD.toFixed(0)}
+                <span className="text-base text-ai-300">
+                  .{budgetTotals.paidAUD.toFixed(2).split('.')[1]}
+                </span>
+              </p>
+              <p className="text-xs text-sumi-500 mt-2 tracking-wide">
+                A${budgetTotals.remainingAUD.toFixed(2)} remaining
+              </p>
             </div>
           </div>
         </section>
       )}
 
-      {/* Region Overview Cards */}
+      {/* Region Overview */}
       <section>
-        <h3 className="text-2xl font-bold mb-4 text-japan-slate">Trip Regions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="mb-8">
+          <p className="mincho-label mb-1">地方 · Regions</p>
+          <h2 className="font-serif text-2xl md:text-3xl text-sumi-900">Four chapters</h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-washi-200 border border-washi-200">
           {REGIONS.map((region) => (
-            <div
-              key={region.name}
-              className={`${region.color} border rounded-lg p-4 card-shadow hover:shadow-lg transition-smooth cursor-default`}
-            >
-              <h4 className={`text-xl font-bold ${region.textColor} mb-2`}>{region.name}</h4>
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar size={16} className={region.textColor} />
-                <span className={region.textColor}>Days {region.days}</span>
-              </div>
+            <div key={region.name} className="bg-washi-50 px-6 py-8 group">
+              <p className="font-serif text-3xl text-ai-500 mb-2 tracking-mincho-wide">{region.jp}</p>
+              <p className="font-serif text-lg text-sumi-900">{region.name}</p>
+              <p className="text-xs text-sumi-500 mt-1 tracking-wide">Days {region.days}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Day-by-Day Timeline */}
+      {/* Day-by-Day Itinerary */}
       <section>
-        <h3 className="text-2xl font-bold mb-4 text-japan-slate">17-Day Itinerary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="mb-8">
+          <p className="mincho-label mb-1">旅程 · Itinerary</p>
+          <h2 className="font-serif text-2xl md:text-3xl text-sumi-900">Seventeen days</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-washi-200 border border-washi-200">
           {Array.from({ length: 17 }).map((_, i) => {
             const dayNumber = i + 1
             const dayData = days?.find((d: any) => d.dayNumber === dayNumber)
@@ -118,24 +161,36 @@ export default function Dashboard() {
               <Link
                 key={dayNumber}
                 to={`/day/${dayNumber}`}
-                className={`${region.color} border-2 ${region.textColor.replace('text-', 'border-')} rounded-lg p-6 card-shadow hover:shadow-lg transition-smooth group`}
+                className="group bg-washi-50 hover:bg-white transition-smooth px-6 py-7 flex flex-col gap-3"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h4 className="text-3xl font-bold text-japan-slate group-hover:text-japan-red transition-smooth">Day {dayNumber}</h4>
-                    <p className="text-sm text-gray-600">{format(dayDate, 'EEE, MMM d')}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="mincho-label">Day</span>
+                    <span className="font-serif text-4xl text-sumi-900 group-hover:text-ai-500 transition-colors leading-none">
+                      {dayNumber.toString().padStart(2, '0')}
+                    </span>
                   </div>
-                  <span className={`${region.badge} px-3 py-1 rounded-full text-xs font-medium`}>{region.name}</span>
+                  <span className="font-serif text-xs text-sumi-500 tracking-mincho-wide pt-2">
+                    {region.jp}
+                  </span>
                 </div>
+
+                <p className="text-xs text-sumi-500 tracking-wide">
+                  {format(dayDate, 'EEE · MMM d')}
+                </p>
+
                 {dayData && (
-                  <>
-                    <div className="flex items-center gap-2 mb-2 text-sm">
-                      <MapPin size={16} />
-                      <span className="font-medium">{dayData.city}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 line-clamp-2">{dayData.summary}</p>
-                  </>
+                  <div className="pt-2 border-t border-washi-200">
+                    <p className="font-serif text-base text-sumi-900 mb-1">{dayData.city}</p>
+                    <p className="text-xs text-sumi-600 line-clamp-2 leading-relaxed">
+                      {dayData.summary}
+                    </p>
+                  </div>
                 )}
+
+                <div className="mt-auto pt-2 flex items-center gap-1 text-xs text-ai-500 opacity-0 group-hover:opacity-100 transition-opacity tracking-wide">
+                  Read day <ArrowRight size={12} />
+                </div>
               </Link>
             )
           })}

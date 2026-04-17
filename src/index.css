@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,109 +6,137 @@
 
 @layer base {
   body {
-    @apply bg-japan-cream text-japan-slate;
+    @apply bg-washi-50 text-sumi-800;
     font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 400;
     scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "palt" 1;
   }
 
   html {
     scroll-behavior: smooth;
   }
+
+  h1, h2, h3, h4, h5 {
+    font-family: 'Shippori Mincho B1', 'Noto Serif JP', Georgia, serif;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    @apply text-sumi-900;
+  }
+
+  /* Subtle washi paper texture via layered radial gradients */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      radial-gradient(rgba(155, 140, 100, 0.035) 1px, transparent 1px),
+      radial-gradient(rgba(155, 140, 100, 0.025) 1px, transparent 1px);
+    background-size: 22px 22px, 36px 36px;
+    background-position: 0 0, 11px 11px;
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
 }
 
-/* Custom scrollbar styles */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
+  background: #C6C5C8;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #9A9AA0;
 }
 
-/* Firefox scrollbar */
 * {
-  scrollbar-color: #888 #f1f1f1;
+  scrollbar-color: #C6C5C8 transparent;
   scrollbar-width: thin;
 }
 
-/* Page transition animations */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
-}
+.animate-fade-in { animation: fadeIn 0.45s ease-out; }
+.animate-slide-in-left { animation: slideInLeft 0.35s ease-out; }
+.animate-slide-in-right { animation: slideInRight 0.35s ease-out; }
+.animate-scale-in { animation: scaleIn 0.25s ease-out; }
 
-.animate-slide-in-left {
-  animation: slideInLeft 0.3s ease-out;
-}
-
-.animate-slide-in-right {
-  animation: slideInRight 0.3s ease-out;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.3s ease-out;
-}
-
-/* Smooth transitions */
 @layer components {
   .transition-smooth {
     @apply transition-all duration-300 ease-out;
   }
 
-  .card-shadow {
-    @apply shadow-md hover:shadow-lg transition-smooth;
+  .card-washi {
+    @apply bg-white/70 border border-washi-200 rounded-sm shadow-washi transition-smooth;
+  }
+
+  .card-washi:hover {
+    @apply shadow-washi-hover;
+  }
+
+  .accent-rule {
+    @apply relative pl-4 border-l border-ai-500;
+  }
+
+  .kanji-watermark {
+    @apply absolute font-serif pointer-events-none select-none text-sumi-900;
+    opacity: 0.04;
+  }
+
+  .tenten-divider {
+    @apply border-t border-dotted border-sumi-300;
+  }
+
+  .mincho-label {
+    @apply font-serif tracking-mincho-wide uppercase text-xs text-sumi-500;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-ai-500 text-washi-50 text-sm font-medium tracking-wide rounded-sm hover:bg-ai-600 transition-smooth disabled:opacity-50;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-sumi-300 text-sumi-700 text-sm font-medium tracking-wide rounded-sm hover:border-ai-500 hover:text-ai-500 transition-smooth;
+  }
+
+  .input-minimal {
+    @apply w-full bg-transparent border-b border-sumi-300 px-1 py-2 text-sumi-900 placeholder:text-sumi-400 focus:outline-none focus:border-ai-500 transition-colors;
+  }
+
+  .input-bordered {
+    @apply w-full bg-white/60 border border-sumi-300 rounded-sm px-3 py-2 text-sumi-900 placeholder:text-sumi-400 focus:outline-none focus:border-ai-500 focus:ring-1 focus:ring-ai-500 transition-colors;
   }
 }
