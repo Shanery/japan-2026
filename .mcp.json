@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "japan-trip-planner": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "/Users/shanery/code/Japan Trip 2026/Japan Trip Plan/japan-trip-planner/mcp-server/dist/index.js"
+      ],
+      "env": {
+        "CONVEX_URL": "https://incredible-civet-622.convex.cloud"
+      }
+    }
+  }
+}

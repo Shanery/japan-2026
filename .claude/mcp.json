@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "japan-trip": {
+      "command": "node",
+      "args": ["mcp-server/dist/index.js"],
+      "env": {
+        "CONVEX_URL": "https://incredible-civet-622.convex.cloud"
+      }
+    }
+  }
+}
