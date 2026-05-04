@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react'
-import { useMutation } from 'convex/react'
+import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
-import { X, Utensils, MapPin, Navigation, Ticket, Paperclip, Upload, Trash2 } from 'lucide-react'
+import { X, Utensils, MapPin, Navigation, Ticket, Paperclip, Upload, Trash2, Plus } from 'lucide-react'
+import BudgetItemRow from './BudgetItemRow'
 
 interface Attachment {
   storageId: Id<'_storage'>
@@ -39,6 +40,15 @@ const ACTIVITY_TYPES = [
   { value: 'ticket', label: 'Ticket', jp: '切符', icon: Ticket },
 ] as const
 
+const BUDGET_CATEGORIES = ['Flights', 'Hotels', 'Transport', 'Food', 'Activities', 'Shopping', 'Other']
+
+const DEFAULT_BUDGET_CATEGORY: Record<Activity['type'], string> = {
+  food: 'Food',
+  logistics: 'Transport',
+  ticket: 'Activities',
+  activity: 'Activities',
+}
+
 export default function AddActivityModal({ dayNumber, dayId, editingActivity, onClose }: AddActivityModalProps) {
   const [formData, setFormData] = useState({
     name: editingActivity?.name || '',
@@ -64,6 +74,22 @@ export default function AddActivityModal({ dayNumber, dayId, editingActivity, on
   const createActivity = useMutation(api.activities.create)
   const updateActivity = useMutation(api.activities.update)
   const generateUploadUrl = useMutation(api.activities.generateUploadUrl)
+
+  // Budget items linked to this activity (only meaningful when editing)
+  const linkedBudgetItems = useQuery(
+    api.budget.listByActivity,
+    editingActivity ? { activityId: editingActivity._id } : 'skip'
+  )
+  const createBudgetItem = useMutation(api.budget.create)
+  const [showAddBudget, setShowAddBudget] = useState(false)
+  const [budgetForm, setBudgetForm] = useState({
+    description: '',
+    category: DEFAULT_BUDGET_CATEGORY[formData.type],
+    amountAUD: '',
+    amountJPY: '',
+    isPaid: false,
+  })
+  const [isSavingBudget, setIsSavingBudget] = useState(false)
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -123,6 +149,35 @@ export default function AddActivityModal({ dayNumber, dayId, editingActivity, on
       setIsSubmitting(false)
     }
   }
+
+  const handleAddBudgetItem = async () => {
+    if (!editingActivity || !budgetForm.description.trim()) return
+    setIsSavingBudget(true)
+    try {
+      await createBudgetItem({
+        category: budgetForm.category,
+        description: budgetForm.description,
+        amountAUD: budgetForm.amountAUD ? parseFloat(budgetForm.amountAUD) : undefined,
+        amountJPY: budgetForm.amountJPY ? parseFloat(budgetForm.amountJPY) : undefined,
+        isPaid: budgetForm.isPaid,
+        dayNumber,
+        activityId: editingActivity._id,
+      })
+      setBudgetForm({
+        description: '',
+        category: DEFAULT_BUDGET_CATEGORY[formData.type],
+        amountAUD: '',
+        amountJPY: '',
+        isPaid: false,
+      })
+      setShowAddBudget(false)
+    } finally {
+      setIsSavingBudget(false)
+    }
+  }
+
+  const budgetTotalAUD = (linkedBudgetItems ?? []).reduce((sum, b) => sum + (b.amountAUD || 0), 0)
+  const budgetTotalJPY = (linkedBudgetItems ?? []).reduce((sum, b) => sum + (b.amountJPY || 0), 0)
 
   return (
     <div className="fixed inset-0 bg-sumi-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -282,6 +337,108 @@ export default function AddActivityModal({ dayNumber, dayId, editingActivity, on
               />
             </label>
           </div>
+
+          {/* Budget — only for existing activities */}
+          {editingActivity && (
+            <div>
+              <div className="flex items-baseline justify-between mb-2">
+                <label className="mincho-label">Budget</label>
+                {(budgetTotalAUD > 0 || budgetTotalJPY > 0) && (
+                  <span className="font-serif text-sm text-sumi-900">
+                    {budgetTotalAUD > 0 && <>A${budgetTotalAUD.toFixed(2)}</>}
+                    {budgetTotalAUD > 0 && budgetTotalJPY > 0 && <span className="text-sumi-400 mx-2">·</span>}
+                    {budgetTotalJPY > 0 && <>¥{Math.round(budgetTotalJPY).toLocaleString()}</>}
+                  </span>
+                )}
+              </div>
+
+              {linkedBudgetItems && linkedBudgetItems.length > 0 && (
+                <div className="border border-washi-200 px-4 mb-3">
+                  {linkedBudgetItems.map((item) => (
+                    <BudgetItemRow key={item._id} item={item} />
+                  ))}
+                </div>
+              )}
+
+              {showAddBudget ? (
+                <div className="border border-washi-200 bg-white/60 p-4 space-y-3">
+                  <input
+                    type="text"
+                    value={budgetForm.description}
+                    onChange={(e) => setBudgetForm({ ...budgetForm, description: e.target.value })}
+                    className="input-minimal text-sm"
+                    placeholder="Expense description"
+                  />
+                  <div className="grid grid-cols-3 gap-3">
+                    <select
+                      value={budgetForm.category}
+                      onChange={(e) => setBudgetForm({ ...budgetForm, category: e.target.value })}
+                      className="input-bordered text-xs"
+                    >
+                      {BUDGET_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      value={budgetForm.amountAUD}
+                      onChange={(e) => setBudgetForm({ ...budgetForm, amountAUD: e.target.value })}
+                      className="input-minimal text-sm font-serif"
+                      placeholder="AUD"
+                      step="0.01"
+                    />
+                    <input
+                      type="number"
+                      value={budgetForm.amountJPY}
+                      onChange={(e) => setBudgetForm({ ...budgetForm, amountJPY: e.target.value })}
+                      className="input-minimal text-sm font-serif"
+                      placeholder="JPY"
+                      step="1"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-sumi-700 tracking-wide">
+                      <input
+                        type="checkbox"
+                        checked={budgetForm.isPaid}
+                        onChange={(e) => setBudgetForm({ ...budgetForm, isPaid: e.target.checked })}
+                        className="w-4 h-4 accent-ai-500 cursor-pointer"
+                      />
+                      Paid
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddBudget(false)}
+                        className="px-3 py-1.5 text-xs text-sumi-700 hover:text-sumi-900 tracking-wide"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddBudgetItem}
+                        disabled={isSavingBudget || !budgetForm.description.trim()}
+                        className="px-3 py-1.5 text-xs bg-ai-500 text-washi-50 hover:bg-ai-600 tracking-wide disabled:opacity-50 transition-colors"
+                      >
+                        {isSavingBudget ? 'Saving…' : 'Add'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowAddBudget(true)}
+                  className="inline-flex items-center gap-1.5 text-sm text-ai-500 hover:text-ai-700 transition-colors"
+                >
+                  <Plus size={13} strokeWidth={1.5} />
+                  Add expense
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Booked */}
           <label className="flex items-center gap-3 cursor-pointer select-none">
