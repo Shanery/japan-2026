@@ -1,9 +1,16 @@
 import { useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
-import { Utensils, MapPin, Navigation, Ticket, ExternalLink, Trash2, Edit2, MapIcon, Clock, Plus } from 'lucide-react'
+import { Utensils, MapPin, Navigation, Ticket, ExternalLink, Trash2, Edit2, MapIcon, Clock, Plus, Paperclip } from 'lucide-react'
 import { useState } from 'react'
 import AddLinkedBudgetItemModal from './AddLinkedBudgetItemModal'
+
+interface AttachmentWithUrl {
+  storageId: Id<'_storage'>
+  name: string
+  contentType?: string
+  url: string | null
+}
 
 interface ActivityCardProps {
   activity: {
@@ -19,6 +26,7 @@ interface ActivityCardProps {
     totalAUD?: number
     totalJPY?: number
     isBooked?: boolean
+    attachments?: AttachmentWithUrl[]
   }
   dayNumber: number
   onEdit: () => void
@@ -122,6 +130,31 @@ export default function ActivityCard({ activity, dayNumber, onEdit }: ActivityCa
 
           {activity.notes && (
             <p className="text-sm text-sumi-700 mb-3 leading-relaxed accent-rule">{activity.notes}</p>
+          )}
+
+          {activity.attachments && activity.attachments.length > 0 && (
+            <ul className="space-y-1.5 mb-3">
+              {activity.attachments.map((attachment) => (
+                <li key={attachment.storageId}>
+                  {attachment.url ? (
+                    <a
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-xs text-sumi-700 hover:text-ai-500 transition-colors"
+                    >
+                      <Paperclip size={12} strokeWidth={1.5} className="text-ai-400" />
+                      <span className="truncate max-w-xs">{attachment.name}</span>
+                    </a>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 text-xs text-sumi-500">
+                      <Paperclip size={12} strokeWidth={1.5} />
+                      <span className="truncate max-w-xs">{attachment.name}</span>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
 
           <div className="flex items-center gap-4 flex-wrap mt-3 pt-3 border-t border-washi-200 text-xs tracking-wide">

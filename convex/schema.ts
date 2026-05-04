@@ -26,6 +26,15 @@ export default defineSchema({
     notes: v.optional(v.string()),
     isBooked: v.boolean(),
     order: v.number(),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          storageId: v.id("_storage"),
+          name: v.string(),
+          contentType: v.optional(v.string()),
+        })
+      )
+    ),
   }).index("by_dayId", ["dayId"]),
 
   budgetItems: defineTable({

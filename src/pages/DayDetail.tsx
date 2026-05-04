@@ -16,6 +16,13 @@ function getDayDate(dayNumber: number): Date {
   return date
 }
 
+interface Attachment {
+  storageId: Id<'_storage'>
+  name: string
+  contentType?: string
+  url: string | null
+}
+
 interface Activity {
   _id: Id<'activities'>
   dayId: Id<'days'>
@@ -31,6 +38,7 @@ interface Activity {
   budgetItemCount?: number
   isBooked?: boolean
   order?: number
+  attachments?: Attachment[]
 }
 
 type TabType = 'itinerary' | 'food' | 'logistics' | 'files'

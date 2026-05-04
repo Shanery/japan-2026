@@ -1,8 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
-import { X, Utensils, MapPin, Navigation, Ticket } from 'lucide-react'
+import { X, Utensils, MapPin, Navigation, Ticket, Paperclip, Upload, Trash2 } from 'lucide-react'
+
+interface Attachment {
+  storageId: Id<'_storage'>
+  name: string
+  contentType?: string
+}
 
 interface Activity {
   _id: Id<'activities'>
@@ -16,6 +22,7 @@ interface Activity {
   notes?: string
   isBooked?: boolean
   order?: number
+  attachments?: Attachment[]
 }
 
 interface AddActivityModalProps {
@@ -43,10 +50,50 @@ export default function AddActivityModal({ dayNumber, dayId, editingActivity, on
     notes: editingActivity?.notes || '',
     isBooked: editingActivity?.isBooked || false,
   })
+  const [attachments, setAttachments] = useState<Attachment[]>(
+    editingActivity?.attachments?.map((a) => ({
+      storageId: a.storageId,
+      name: a.name,
+      contentType: a.contentType,
+    })) || []
+  )
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const createActivity = useMutation(api.activities.create)
   const updateActivity = useMutation(api.activities.update)
+  const generateUploadUrl = useMutation(api.activities.generateUploadUrl)
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    setIsUploading(true)
+    try {
+      const uploaded: Attachment[] = []
+      for (const file of files) {
+        const uploadUrl = await generateUploadUrl({})
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        })
+        if (response.ok) {
+          const { storageId } = await response.json()
+          uploaded.push({ storageId, name: file.name, contentType: file.type })
+        }
+      }
+      setAttachments((prev) => [...prev, ...uploaded])
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleRemoveAttachment = (storageId: Id<'_storage'>) => {
+    setAttachments((prev) => prev.filter((a) => a.storageId !== storageId))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -63,6 +110,7 @@ export default function AddActivityModal({ dayNumber, dayId, editingActivity, on
         externalUrl: formData.externalUrl || undefined,
         notes: formData.notes || undefined,
         isBooked: formData.isBooked,
+        attachments: attachments.length > 0 ? attachments : undefined,
       }
 
       if (editingActivity) {
@@ -195,6 +243,46 @@ export default function AddActivityModal({ dayNumber, dayId, editingActivity, on
             />
           </div>
 
+          {/* Attachments */}
+          <div>
+            <label className="mincho-label block mb-2">Attachments</label>
+            {attachments.length > 0 && (
+              <ul className="space-y-2 mb-3">
+                {attachments.map((attachment) => (
+                  <li
+                    key={attachment.storageId}
+                    className="flex items-center gap-3 px-3 py-2 border border-washi-200 bg-white/60 text-sm"
+                  >
+                    <Paperclip size={14} strokeWidth={1.5} className="text-sumi-500 flex-shrink-0" />
+                    <span className="flex-1 truncate text-sumi-800">{attachment.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(attachment.storageId)}
+                      className="text-sumi-500 hover:text-shu transition-colors"
+                      aria-label="Remove attachment"
+                    >
+                      <Trash2 size={14} strokeWidth={1.5} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <label className="block border border-dashed border-washi-300 hover:border-ai-500 hover:bg-washi-100/40 transition-colors p-5 cursor-pointer text-center">
+              <Upload size={16} strokeWidth={1.5} className="mx-auto text-ai-500 mb-2" />
+              <p className="text-sm text-sumi-700 tracking-wide">
+                {isUploading ? 'Uploading…' : 'Click to attach files'}
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                disabled={isUploading}
+                className="hidden"
+              />
+            </label>
+          </div>
+
           {/* Booked */}
           <label className="flex items-center gap-3 cursor-pointer select-none">
             <input
@@ -211,7 +299,7 @@ export default function AddActivityModal({ dayNumber, dayId, editingActivity, on
             <button type="button" onClick={onClose} className="btn-ghost flex-1">
               Cancel
             </button>
-            <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">
+            <button type="submit" disabled={isSubmitting || isUploading} className="btn-primary flex-1">
               {isSubmitting ? 'Saving…' : editingActivity ? 'Update' : 'Add entry'}
             </button>
           </div>

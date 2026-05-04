@@ -1,6 +1,12 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+const attachmentValidator = v.object({
+  storageId: v.id("_storage"),
+  name: v.string(),
+  contentType: v.optional(v.string()),
+});
+
 export const listByDay = query({
   args: { dayId: v.id("days") },
   handler: async (ctx, args) => {
@@ -33,11 +39,19 @@ export const listByDayWithTotals = query({
           if (item.amountJPY) totalJPY += item.amountJPY;
         }
 
+        const attachments = await Promise.all(
+          (activity.attachments ?? []).map(async (a) => ({
+            ...a,
+            url: await ctx.storage.getUrl(a.storageId),
+          }))
+        );
+
         return {
           ...activity,
           totalAUD: totalAUD || undefined,
           totalJPY: totalJPY || undefined,
           budgetItemCount: budgetItems.length,
+          attachments,
         };
       })
     );
@@ -61,6 +75,7 @@ export const create = mutation({
     notes: v.optional(v.string()),
     isBooked: v.optional(v.boolean()),
     order: v.number(),
+    attachments: v.optional(v.array(attachmentValidator)),
   },
   handler: async (ctx, args) => {
     const activityData = {
@@ -91,6 +106,7 @@ export const update = mutation({
     notes: v.optional(v.string()),
     isBooked: v.optional(v.boolean()),
     order: v.optional(v.number()),
+    attachments: v.optional(v.array(attachmentValidator)),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
@@ -102,6 +118,12 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("activities") },
   handler: async (ctx, args) => {
+    const activity = await ctx.db.get(args.id);
+    if (activity?.attachments) {
+      for (const attachment of activity.attachments) {
+        await ctx.storage.delete(attachment.storageId);
+      }
+    }
     await ctx.db.delete(args.id);
   },
 });
@@ -114,5 +136,41 @@ export const reorder = mutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, { order: args.order });
     return await ctx.db.get(args.id);
+  },
+});
+
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const addAttachment = mutation({
+  args: {
+    id: v.id("activities"),
+    attachment: attachmentValidator,
+  },
+  handler: async (ctx, args) => {
+    const activity = await ctx.db.get(args.id);
+    if (!activity) throw new Error("Activity not found");
+    const attachments = [...(activity.attachments ?? []), args.attachment];
+    await ctx.db.patch(args.id, { attachments });
+  },
+});
+
+export const removeAttachment = mutation({
+  args: {
+    id: v.id("activities"),
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const activity = await ctx.db.get(args.id);
+    if (!activity) throw new Error("Activity not found");
+    const attachments = (activity.attachments ?? []).filter(
+      (a) => a.storageId !== args.storageId
+    );
+    await ctx.db.patch(args.id, { attachments });
+    await ctx.storage.delete(args.storageId);
   },
 });
