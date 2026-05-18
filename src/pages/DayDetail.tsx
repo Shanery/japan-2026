@@ -4,7 +4,7 @@ import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { format } from 'date-fns'
-import { ArrowLeft, ArrowRight, MapPin, Plus, Utensils, Navigation, Ticket, Camera, Calendar, Paperclip } from 'lucide-react'
+import { ArrowLeft, ArrowRight, MapPin, Plus, Utensils, Navigation, Ticket, Camera, Calendar, Paperclip, Map } from 'lucide-react'
 import AddActivityModal from '../components/AddActivityModal'
 import ActivityCard from '../components/ActivityCard'
 
@@ -42,15 +42,42 @@ interface Activity {
   attachments?: Attachment[]
 }
 
-type TabType = 'itinerary' | 'food' | 'logistics' | 'files' | 'attachments'
+type TabType = 'itinerary' | 'food' | 'logistics' | 'map' | 'files' | 'attachments'
 
 const TABS: { id: TabType; label: string; jp: string; icon: typeof Utensils | null }[] = [
   { id: 'itinerary', label: 'Itinerary', jp: '旅程', icon: null },
   { id: 'food', label: 'Food', jp: '食', icon: Utensils },
   { id: 'logistics', label: 'Logistics', jp: '移動', icon: Navigation },
+  { id: 'map', label: 'Map', jp: '地図', icon: Map },
   { id: 'files', label: 'Tickets', jp: '切符', icon: Ticket },
   { id: 'attachments', label: 'Attachments', jp: '添付', icon: Paperclip },
 ]
+
+function buildDirectionsUrl(locations: string[]): string {
+  if (locations.length === 0) return ''
+  if (locations.length === 1) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locations[0])}`
+  }
+  const origin = encodeURIComponent(locations[0])
+  const destination = encodeURIComponent(locations[locations.length - 1])
+  const waypoints = locations.slice(1, -1).map(encodeURIComponent).join('|')
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=transit`
+  if (waypoints) url += `&waypoints=${waypoints}`
+  return url
+}
+
+function buildEmbedUrl(locations: string[]): string {
+  if (locations.length === 0) return ''
+  if (locations.length === 1) {
+    return `https://maps.google.com/maps?q=${encodeURIComponent(locations[0])}&output=embed`
+  }
+  const saddr = encodeURIComponent(locations[0])
+  const rest = locations.slice(1)
+  const daddr = rest
+    .map((loc, i) => (i === 0 ? encodeURIComponent(loc) : `to:${encodeURIComponent(loc)}`))
+    .join('+')
+  return `https://maps.google.com/maps?saddr=${saddr}&daddr=${daddr}&dirflg=r&output=embed`
+}
 
 export default function DayDetail() {
   const { dayNumber } = useParams<{ dayNumber: string }>()
@@ -69,7 +96,12 @@ export default function DayDetail() {
   const prevDay = dayNum > 1 ? dayNum - 1 : null
   const nextDay = dayNum < TRIP_DAYS ? dayNum + 1 : null
 
-  const sortedActivities = activities?.sort((a: Activity, b: Activity) => (a.order || 0) - (b.order || 0)) || []
+  const sortedActivities = activities?.slice().sort((a: Activity, b: Activity) => {
+    if (a.time && b.time) return a.time.localeCompare(b.time)
+    if (a.time) return -1
+    if (b.time) return 1
+    return (a.order || 0) - (b.order || 0)
+  }) || []
   const foodActivities = sortedActivities.filter((a: Activity) => a.type === 'food')
   const logisticsActivities = sortedActivities.filter((a: Activity) => a.type === 'logistics')
   const ticketActivities = sortedActivities.filter((a: Activity) => a.type === 'ticket')
@@ -81,6 +113,11 @@ export default function DayDetail() {
       activityName: a.name,
     }))
   )
+
+  const mapStops = sortedActivities.filter((a: Activity) => !!a.location?.trim())
+  const mapLocations = mapStops.map((a: Activity) => a.location as string)
+  const directionsUrl = buildDirectionsUrl(mapLocations)
+  const embedUrl = buildEmbedUrl(mapLocations)
 
   const handleEditActivity = (activity: Activity) => {
     setEditingActivity(activity)
@@ -100,7 +137,8 @@ export default function DayDetail() {
   }
 
   const isAttachmentsTab = activeTab === 'attachments'
-  const current = isAttachmentsTab ? null : tabData[activeTab]
+  const isMapTab = activeTab === 'map'
+  const current = isAttachmentsTab || isMapTab ? null : tabData[activeTab]
 
   return (
     <div className="pb-8">
@@ -245,6 +283,89 @@ export default function DayDetail() {
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+      ) : isMapTab ? (
+        <div>
+          {mapStops.length === 0 ? (
+            <div className="py-20 text-center border border-dashed border-washi-200 rounded-sm">
+              <p className="text-sumi-400 text-sm tracking-wide">
+                No activities with locations yet. Add a location to an activity to see it on the map.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+                <p className="text-xs text-sumi-500 tracking-wide">
+                  {mapStops.length} {mapStops.length === 1 ? 'stop' : 'stops'}
+                </p>
+                <a
+                  href={directionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary"
+                >
+                  <Map size={14} strokeWidth={1.5} />
+                  {mapStops.length === 1 ? 'Open in Google Maps' : 'Open route in Google Maps'}
+                </a>
+              </div>
+
+              <div className="aspect-video w-full border border-washi-200 bg-washi-50 mb-8 overflow-hidden">
+                <iframe
+                  title="Day route preview"
+                  src={embedUrl}
+                  className="w-full h-full"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+
+              <ol className="space-y-0">
+                {mapStops.map((act: Activity, i: number) => {
+                  const isLast = i === mapStops.length - 1
+                  return (
+                    <li key={act._id}>
+                      <div className="flex gap-5 p-5 border border-washi-200 bg-white/60">
+                        <div className="flex flex-col items-center pt-0.5 w-10 flex-shrink-0">
+                          <span className="font-serif text-2xl text-ai-500 leading-none">
+                            {(i + 1).toString().padStart(2, '0')}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-3 flex-wrap mb-1">
+                            <h4 className="font-serif text-base text-sumi-900">{act.name}</h4>
+                            {act.time && (
+                              <span className="text-xs text-sumi-500 tracking-wide">{act.time}</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-sumi-600 inline-flex items-center gap-1.5">
+                            <MapPin size={12} strokeWidth={1.5} className="text-ai-400 flex-shrink-0" />
+                            <span className="truncate">{act.location}</span>
+                          </p>
+                        </div>
+                        {act.googleMapsUrl && (
+                          <a
+                            href={act.googleMapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-sumi-500 hover:text-ai-500 transition-colors self-center tracking-wide flex-shrink-0"
+                          >
+                            View
+                          </a>
+                        )}
+                      </div>
+                      {!isLast && (
+                        <div className="flex items-center gap-3 pl-12 py-2 text-xs text-sumi-400 tracking-wide">
+                          <span className="h-px w-6 bg-washi-300" />
+                          <Navigation size={11} strokeWidth={1.5} />
+                          <span>to next stop</span>
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ol>
+            </>
           )}
         </div>
       ) : current ? (
