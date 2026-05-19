@@ -53,6 +53,60 @@ const TABS: { id: TabType; label: string; jp: string; icon: typeof Utensils | nu
   { id: 'attachments', label: 'Attachments', jp: '添付', icon: Paperclip },
 ]
 
+const LABEL_MINUTES: Record<string, number> = {
+  'early morning': 6 * 60,
+  'morning': 9 * 60,
+  'mid morning': 10 * 60,
+  'mid-morning': 10 * 60,
+  'late morning': 11 * 60,
+  'noon': 12 * 60,
+  'midday': 12 * 60,
+  'early afternoon': 13 * 60,
+  'afternoon': 14 * 60,
+  'mid afternoon': 15 * 60,
+  'mid-afternoon': 15 * 60,
+  'late afternoon': 16 * 60,
+  'early evening': 17 * 60,
+  'evening': 19 * 60,
+  'late evening': 21 * 60,
+  'night': 22 * 60,
+  'late night': 23 * 60,
+}
+
+function timeToMinutes(raw: string): number {
+  const cleaned = raw.toLowerCase().replace(/^~+\s*/, '').trim()
+  // Range like "9:00 am - 9:00 pm" — sort by the start. Require whitespace
+  // around the dash so compound labels like "mid-morning" aren't split.
+  const start = cleaned.split(/\s+[-–—]\s+/)[0].trim()
+
+  // 12-hour: "7:25 am", "4 pm", "12:00pm"
+  const ampm = start.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/)
+  if (ampm) {
+    let h = parseInt(ampm[1], 10) % 12
+    const m = ampm[2] ? parseInt(ampm[2], 10) : 0
+    if (ampm[3] === 'pm') h += 12
+    return h * 60 + m
+  }
+
+  // 24-hour: "09:00", "13:45"
+  const h24 = start.match(/^(\d{1,2}):(\d{2})\b/)
+  if (h24) {
+    return parseInt(h24[1], 10) * 60 + parseInt(h24[2], 10)
+  }
+
+  // Text labels — match the longest known label that appears
+  let best = -1
+  let bestMinutes = Number.POSITIVE_INFINITY
+  for (const label in LABEL_MINUTES) {
+    const idx = start.indexOf(label)
+    if (idx !== -1 && label.length > best) {
+      best = label.length
+      bestMinutes = LABEL_MINUTES[label]
+    }
+  }
+  return bestMinutes
+}
+
 function buildDirectionsUrl(locations: string[]): string {
   if (locations.length === 0) return ''
   if (locations.length === 1) {
@@ -97,7 +151,11 @@ export default function DayDetail() {
   const nextDay = dayNum < TRIP_DAYS ? dayNum + 1 : null
 
   const sortedActivities = activities?.slice().sort((a: Activity, b: Activity) => {
-    if (a.time && b.time) return a.time.localeCompare(b.time)
+    if (a.time && b.time) {
+      const diff = timeToMinutes(a.time) - timeToMinutes(b.time)
+      if (diff !== 0) return diff
+      return (a.order || 0) - (b.order || 0)
+    }
     if (a.time) return -1
     if (b.time) return 1
     return (a.order || 0) - (b.order || 0)
