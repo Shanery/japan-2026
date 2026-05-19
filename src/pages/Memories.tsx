@@ -31,8 +31,14 @@ export default function Memories() {
 
   const dayNumber = dayNumberParam ? parseInt(dayNumberParam) : undefined
 
-  const dayData = dayNumber ? useQuery(api.days.getByNumber, { dayNumber }) : undefined
-  const memories = dayData ? useQuery(api.memories.listByDay, { dayId: dayData._id }) : undefined
+  const dayData = useQuery(
+    api.days.getByNumber,
+    dayNumber ? { dayNumber } : 'skip',
+  )
+  const memories = useQuery(
+    api.memories.listByDay,
+    dayData ? { dayId: dayData._id } : 'skip',
+  )
 
   const createMemory = useMutation(api.memories.create)
   const generateUploadUrl = useMutation(api.memories.generateUploadUrl)
